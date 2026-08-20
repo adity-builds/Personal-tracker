@@ -1,4 +1,6 @@
 from datetime import date
+import os
+import sys
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +15,10 @@ import database
 import models
 import schemas
 
+def resource_path(relative_path: str) -> str:
+    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    return os.path.join(base_path, relative_path)
+
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="Daily Task Tracker API")
@@ -25,11 +31,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=resource_path("static")), name="static")
 
 @app.get("/")
 def read_index():
-    return FileResponse("static/index.html")
+    return FileResponse(resource_path("static/index.html"))
 
 def get_db():
     db = database.SessionLocal()
