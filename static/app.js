@@ -1,10 +1,79 @@
 const API_URL = "http://127.0.0.1:8000/tasks/";
+const HISTORY_URL = "http://127.0.0.1:8000/history/";
 
 const form = document.getElementById("task-form");
 const titleInput = document.getElementById("task-title");
 const descriptionInput = document.getElementById("task-description");
 const taskList = document.getElementById("task-list");
 const emptyState = document.getElementById("empty-state");
+const todayCount = document.getElementById("today-count");
+const historyList = document.getElementById("history-list");
+
+function todayString() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr + "T00:00:00");
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+async function fetchHistory() {
+  try {
+    const response = await fetch(HISTORY_URL);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch history:", error);
+    return [];
+  }
+}
+
+function renderHistory(history) {
+  historyList.innerHTML = "";
+
+  const today = todayString();
+  const todayEntry = history.find((h) => h.date === today);
+  todayCount.textContent = todayEntry ? todayEntry.count : 0;
+
+  if (history.length === 0) {
+    const li = document.createElement("li");
+    li.className = "history-empty";
+    li.textContent = "No completed tasks yet.";
+    historyList.appendChild(li);
+    return;
+  }
+
+  history.forEach((entry) => {
+    const li = document.createElement("li");
+    li.className = "history-item" + (entry.date === today ? " today" : "");
+
+    const dateSpan = document.createElement("span");
+    dateSpan.className = "history-date";
+    dateSpan.textContent = formatDate(entry.date);
+
+    const countSpan = document.createElement("span");
+    countSpan.className = "history-count";
+    countSpan.textContent = `${entry.count} done`;
+
+    li.appendChild(dateSpan);
+    li.appendChild(countSpan);
+    historyList.appendChild(li);
+  });
+}
+
+async function loadHistory() {
+  const history = await fetchHistory();
+  renderHistory(history);
+}
 
 async function fetchTasks() {
   try {
@@ -65,6 +134,7 @@ function renderTasks(tasks) {
       try {
         await updateTaskStatus(task.id, checkbox.checked);
         li.classList.toggle("completed", checkbox.checked);
+        await loadHistory();
       } catch (error) {
         console.error("Failed to update task:", error);
         checkbox.checked = !checkbox.checked;
@@ -137,3 +207,4 @@ async function loadTasks() {
 }
 
 loadTasks();
+loadHistory();

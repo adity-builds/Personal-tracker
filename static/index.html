@@ -7,20 +7,30 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>Daily Task Tracker</h1>
-      <p class="subtitle">Stay on top of your day, one task at a time.</p>
-    </header>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>Today</h2>
+      <p class="today-count"><span id="today-count">0</span> tasks done</p>
 
-    <form id="task-form">
-      <input type="text" id="task-title" placeholder="Task title" required />
-      <input type="text" id="task-description" placeholder="Description (optional)" />
-      <button type="submit">Add Task</button>
-    </form>
+      <h2>History</h2>
+      <ul id="history-list"></ul>
+    </aside>
 
-    <ul id="task-list"></ul>
-    <p id="empty-state" class="hidden">No tasks yet. Add your first task above!</p>
+    <div class="container">
+      <header>
+        <h1>Daily Task Tracker</h1>
+        <p class="subtitle">Stay on top of your day, one task at a time.</p>
+      </header>
+
+      <form id="task-form">
+        <input type="text" id="task-title" placeholder="Task title" required />
+        <input type="text" id="task-description" placeholder="Description (optional)" />
+        <button type="submit">Add Task</button>
+      </form>
+
+      <ul id="task-list"></ul>
+      <p id="empty-state" class="hidden">No tasks yet. Add your first task above!</p>
+    </div>
   </div>
 
   <script src="/static/app.js"></script>

@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 from pydantic import BaseModel
 
@@ -14,6 +15,11 @@ class TaskUpdate(BaseModel):
 class Task(TaskBase):
     id: int
     completed: bool
+    completed_at: Optional[date] = None
 
     class Config:
         from_attributes = True
+
+class DailyCount(BaseModel):
+    date: date
+    count: int

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String
+from sqlalchemy import Boolean, Column, Date, Integer, String
 from database import Base
 
 class TaskModel(Base):
@@ -8,3 +8,4 @@ class TaskModel(Base):
     title = Column(String, index=True)
     description = Column(String, nullable=True)
     completed = Column(Boolean, default=False)
+    completed_at = Column(Date, nullable=True)
