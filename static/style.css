@@ -1,0 +1,152 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 16px;
+}
+
+.container {
+  width: 100%;
+  max-width: 560px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  padding: 32px;
+}
+
+header {
+  margin-bottom: 24px;
+}
+
+header h1 {
+  font-size: 28px;
+  color: #2d3748;
+}
+
+.subtitle {
+  color: #718096;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+#task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+#task-form input {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+
+#task-form input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+#task-form button {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #667eea;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#task-form button:hover {
+  background: #5a67d8;
+}
+
+#task-list {
+  list-style: none;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #667eea;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  font-size: 15px;
+  color: #2d3748;
+}
+
+.task-description {
+  font-size: 13px;
+  color: #718096;
+  margin-top: 2px;
+}
+
+.task-item.completed .task-title {
+  text-decoration: line-through;
+  color: #a0aec0;
+}
+
+.task-item.completed .task-description {
+  color: #cbd5e0;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #fc8181;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.delete-btn:hover {
+  background: #fff5f5;
+  color: #e53e3e;
+}
+
+#empty-state {
+  text-align: center;
+  color: #a0aec0;
+  padding: 24px 0;
+}
+
+.hidden {
+  display: none;
+}

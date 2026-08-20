@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Task Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Daily Task Tracker</h1>
+      <p class="subtitle">Stay on top of your day, one task at a time.</p>
+    </header>
+
+    <form id="task-form">
+      <input type="text" id="task-title" placeholder="Task title" required />
+      <input type="text" id="task-description" placeholder="Description (optional)" />
+      <button type="submit">Add Task</button>
+    </form>
+
+    <ul id="task-list"></ul>
+    <p id="empty-state" class="hidden">No tasks yet. Add your first task above!</p>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
