@@ -291,3 +291,34 @@ filterStatus.addEventListener("change", () => renderTasks(getFilteredTasks()));
 
 loadTasks();
 loadHistory();
+
+function getWindowApi() {
+  return window.pywebview && window.pywebview.api;
+}
+
+const winMin = document.getElementById("btn-min");
+const winMax = document.getElementById("btn-max");
+const winClose = document.getElementById("btn-close");
+
+if (winMin) {
+  winMin.addEventListener("click", () => {
+    const api = getWindowApi();
+    if (api && api.minimize) api.minimize();
+  });
+}
+
+if (winMax) {
+  winMax.addEventListener("click", async () => {
+    const api = getWindowApi();
+    if (!api || !api.toggle_maximize) return;
+    const maximized = await api.toggle_maximize();
+    winMax.innerHTML = maximized ? "\u2750" : "\u25A1";
+  });
+}
+
+if (winClose) {
+  winClose.addEventListener("click", () => {
+    const api = getWindowApi();
+    if (api && api.close) api.close();
+  });
+}

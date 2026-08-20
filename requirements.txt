@@ -2,4 +2,5 @@ fastapi
 uvicorn
 sqlalchemy
 pydantic
-flaskwebgui
+pywebview
+pyinstaller

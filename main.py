@@ -1,18 +1,25 @@
 from datetime import date
 import os
 import sys
+import threading
+import time
+import urllib.request
 
+import uvicorn
+import webview
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from flaskwebgui import FlaskUI
 from sqlalchemy.orm import Session
 from typing import List
 
 import database
 import models
 import schemas
+
+HOST = "127.0.0.1"
+PORT = 8000
 
 def resource_path(relative_path: str) -> str:
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
@@ -128,12 +135,63 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+class Api:
+    def __init__(self) -> None:
+        self._window = None
+        self._is_maximized = False
+
+    def minimize(self) -> None:
+        if self._window:
+            self._window.minimize()
+
+    def toggle_maximize(self) -> bool:
+        if not self._window:
+            return False
+        if self._is_maximized:
+            self._window.restore()
+            self._is_maximized = False
+        else:
+            self._window.maximize()
+            self._is_maximized = True
+        return self._is_maximized
+
+    def close(self) -> None:
+        if self._window:
+            self._window.destroy()
+
+
+def run_server() -> None:
+    config = uvicorn.Config(app, host=HOST, port=PORT, log_level="info")
+    server = uvicorn.Server(config)
+    server.run()
+
+def wait_for_server(timeout: float = 15.0) -> bool:
+    url = f"http://{HOST}:{PORT}"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=1)
+            return True
+        except Exception:
+            time.sleep(0.2)
+    return False
+
+
 if __name__ == "__main__":
-    FlaskUI(
-        app=app,
-        server="fastapi",
-        port=8000,
+    threading.Thread(target=run_server, daemon=True).start()
+
+    if not wait_for_server():
+        raise RuntimeError(f"Server failed to start on {HOST}:{PORT}")
+
+    api = Api()
+    window = webview.create_window(
+        "Daily Task Tracker",
+        f"http://{HOST}:{PORT}",
         width=1000,
         height=720,
-        fullscreen=False,
-    ).run()
+        frameless=True,
+        easy_drag=False,
+        js_api=api,
+    )
+    api._window = window
+    webview.start()
