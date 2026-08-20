@@ -7,14 +7,25 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <h2>Today</h2>
-      <p class="today-count"><span id="today-count">0</span> tasks done</p>
+  <div class="layout" id="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-brand">Tracker</span>
+        <button id="sidebar-toggle" class="collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar">&#10094;</button>
+      </div>
 
-      <h2>History</h2>
-      <ul id="history-list"></ul>
+      <section class="today-section">
+        <h2>Today</h2>
+        <p class="today-count"><span id="today-count">0</span> tasks done</p>
+      </section>
+
+      <section class="history-section">
+        <h2>History</h2>
+        <ul id="history-list"></ul>
+      </section>
     </aside>
+
+    <button id="sidebar-expand" class="expand-btn hidden" title="Expand sidebar" aria-label="Expand sidebar">&#10095;</button>
 
     <div class="container">
       <header>
@@ -24,12 +35,35 @@
 
       <form id="task-form">
         <input type="text" id="task-title" placeholder="Task title" required />
-        <input type="text" id="task-description" placeholder="Description (optional)" />
+        <div class="form-row">
+          <input type="text" id="task-description" placeholder="Description (optional)" />
+          <select id="task-priority" title="Priority">
+            <option value="High">High</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
         <button type="submit">Add Task</button>
       </form>
 
+      <div class="toolbar">
+        <input type="search" id="search-input" placeholder="Search tasks..." />
+        <select id="filter-priority" title="Filter by priority">
+          <option value="all">All priorities</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <select id="filter-status" title="Filter by status">
+          <option value="all">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+
       <ul id="task-list"></ul>
       <p id="empty-state" class="hidden">No tasks yet. Add your first task above!</p>
+      <p id="no-results" class="hidden">No tasks match your search or filters.</p>
     </div>
   </div>
 

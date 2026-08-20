@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from flaskwebgui import FlaskUI
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -20,6 +19,7 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
 
 models.Base.metadata.create_all(bind=database.engine)
+database.migrate()
 
 app = FastAPI(title="Daily Task Tracker API")
 
@@ -46,7 +46,12 @@ def get_db():
 
 @app.post("/tasks/", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
-    db_task = models.TaskModel(title=task.title, description=task.description, completed=False)
+    db_task = models.TaskModel(
+        title=task.title,
+        description=task.description,
+        completed=False,
+        priority=task.priority,
+    )
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -62,9 +67,34 @@ def update_task_status(task_id: int, task_update: schemas.TaskUpdate, db: Sessio
     db_task = db.query(models.TaskModel).filter(models.TaskModel.id == task_id).first()
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
+    was_completed = db_task.completed
+
     db_task.completed = task_update.completed
     db_task.completed_at = date.today() if task_update.completed else None
+    if task_update.priority is not None:
+        db_task.priority = task_update.priority
+
+    history_entry = (
+        db.query(models.HistoryModel)
+        .filter(models.HistoryModel.task_id == task_id)
+        .first()
+    )
+    if task_update.completed and not was_completed:
+        if history_entry is None:
+            history_entry = models.HistoryModel(
+                task_id=task_id,
+                title=db_task.title,
+                completed_at=date.today(),
+            )
+            db.add(history_entry)
+        else:
+            history_entry.title = db_task.title
+            history_entry.completed_at = date.today()
+    elif not task_update.completed and was_completed:
+        if history_entry is not None:
+            db.delete(history_entry)
+
     db.commit()
     db.refresh(db_task)
     return db_task
@@ -72,13 +102,20 @@ def update_task_status(task_id: int, task_update: schemas.TaskUpdate, db: Sessio
 @app.get("/history/", response_model=List[schemas.DailyCount])
 def read_history(db: Session = Depends(get_db)):
     rows = (
-        db.query(models.TaskModel.completed_at, func.count(models.TaskModel.id))
-        .filter(models.TaskModel.completed_at.isnot(None))
-        .group_by(models.TaskModel.completed_at)
-        .order_by(models.TaskModel.completed_at.desc())
+        db.query(models.HistoryModel)
+        .order_by(
+            models.HistoryModel.completed_at.desc(),
+            models.HistoryModel.id.desc(),
+        )
         .all()
     )
-    return [{"date": d, "count": c} for d, c in rows]
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(row.completed_at, []).append(row.title)
+    return [
+        {"date": day, "count": len(titles), "tasks": titles}
+        for day, titles in grouped.items()
+    ]
 
 @app.delete("/tasks/{task_id}", response_model=dict)
 def delete_task(task_id: int, db: Session = Depends(get_db)):

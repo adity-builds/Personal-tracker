@@ -1,16 +1,18 @@
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
+    priority: str = "Medium"
 
 class TaskCreate(TaskBase):
     pass
 
 class TaskUpdate(BaseModel):
     completed: bool
+    priority: Optional[str] = None
 
 class Task(TaskBase):
     id: int
@@ -23,3 +25,4 @@ class Task(TaskBase):
 class DailyCount(BaseModel):
     date: date
     count: int
+    tasks: List[str] = []
