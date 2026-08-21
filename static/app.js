@@ -16,11 +16,73 @@ const historyList = document.getElementById("history-list");
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebar-toggle");
 const sidebarExpand = document.getElementById("sidebar-expand");
+const themeToggle = document.getElementById("theme-toggle");
 
 const PRIORITY_ORDER = { High: 0, Medium: 1, Low: 2 };
 
 let allTasks = [];
 
+/* ===== Theme System - CSS variables + localStorage persistence ===== */
+const THEME_KEY = "daily-tracker-theme";
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch (e) {
+    /* storage may be unavailable */
+  }
+}
+
+function initTheme() {
+  let saved = null;
+  try {
+    saved = localStorage.getItem(THEME_KEY);
+  } catch (e) {}
+  if (saved === "dark" || saved === "light") {
+    applyTheme(saved);
+    return;
+  }
+  // Fallback to prefers-color-scheme
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(prefersDark ? "dark" : "light");
+}
+
+if (themeToggle) {
+  themeToggle.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    applyTheme(current === "dark" ? "light" : "dark");
+  });
+}
+
+initTheme();
+
+// Sync version badge from backend (/version) - keeps UI and exe version in sync
+(async () => {
+  try {
+    const vEl = document.getElementById("app-version");
+    if (!vEl) return;
+    const r = await fetch("/version");
+    if (r.ok) {
+      const data = await r.json();
+      if (data && data.version) vEl.textContent = `v${data.version}`;
+    }
+  } catch (e) {}
+})();
+
+// Listen for system theme changes only when no explicit choice saved
+try {
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const handler = (e) => {
+    try {
+      if (!localStorage.getItem(THEME_KEY)) applyTheme(e.matches ? "dark" : "light");
+    } catch (err) {}
+  };
+  if (mediaQuery.addEventListener) mediaQuery.addEventListener("change", handler);
+  else if (mediaQuery.addListener) mediaQuery.addListener(handler);
+} catch (e) {}
+
+/* ===== Sidebar collapse - preserved intact ===== */
 function setSidebarCollapsed(collapsed) {
   document.body.classList.toggle("sidebar-collapsed", collapsed);
   sidebarExpand.classList.toggle("hidden", !collapsed);
@@ -57,6 +119,25 @@ function formatDate(dateStr) {
   });
 }
 
+function formatTime(dateTimeStr) {
+  if (!dateTimeStr) return "";
+  const d = new Date(dateTimeStr);
+  if (isNaN(d.getTime())) return String(dateTimeStr);
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function formatDateTime(dateTimeStr) {
+  if (!dateTimeStr) return "";
+  const d = new Date(dateTimeStr);
+  if (isNaN(d.getTime())) return String(dateTimeStr);
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 async function fetchHistory() {
   try {
     const response = await fetch(HISTORY_URL);
@@ -72,6 +153,7 @@ function renderHistory(history) {
   historyList.innerHTML = "";
 
   const today = todayString();
+  // todayCount is sum of counts for today (now accurate with append-only)
   const todayEntry = history.find((h) => h.date === today);
   todayCount.textContent = todayEntry ? todayEntry.count : 0;
 
@@ -105,9 +187,55 @@ function renderHistory(history) {
     if (entry.tasks && entry.tasks.length > 0) {
       const tasksUl = document.createElement("ul");
       tasksUl.className = "history-tasks";
-      entry.tasks.forEach((taskTitle) => {
+      entry.tasks.forEach((task) => {
         const taskLi = document.createElement("li");
-        taskLi.textContent = taskTitle;
+        taskLi.className = "history-task-row";
+
+        // Backward compat: tasks may be string (legacy) or object with timestamps
+        if (typeof task === "string") {
+          taskLi.textContent = task;
+        } else {
+          const titleSpan = document.createElement("span");
+          titleSpan.className = "history-task-title";
+          titleSpan.textContent = task.title || "Untitled";
+
+          const metaSpan = document.createElement("span");
+          metaSpan.className = "history-task-meta";
+
+          // Build timestamp line: Created -> Completed with time
+          const created = task.created_at ? formatDateTime(task.created_at) : "";
+          const completed = task.completed_at ? formatTime(task.completed_at) : formatTime(task.completed_at);
+          const completedFull = task.completed_at ? formatDateTime(task.completed_at) : "";
+          let metaText = "";
+          if (created && completedFull) {
+            // show both: Created: ... • Completed: time (today) or full datetime
+            const sameDay = task.created_at && task.completed_at && String(task.created_at).slice(0,10) === String(task.completed_at).slice(0,10);
+            if (sameDay) {
+              metaText = `Created ${formatTime(task.created_at)} → Completed ${formatTime(task.completed_at)}`;
+            } else {
+              metaText = `Created ${formatDateTime(task.created_at)} → Completed ${completedFull}`;
+            }
+            // append priority if available
+            if (task.priority) metaText += ` • ${task.priority}`;
+          } else if (completedFull) {
+            metaText = `Completed ${completedFull}`;
+            if (task.priority) metaText += ` • ${task.priority}`;
+          } else {
+            metaText = task.priority || "";
+          }
+          metaSpan.textContent = metaText;
+          // tooltip with full ISO
+          const tip = `Created: ${task.created_at || "—"}\nCompleted: ${task.completed_at || "—"}`;
+          taskLi.title = tip;
+
+          taskLi.appendChild(titleSpan);
+          if (metaText) {
+            const br = document.createElement("div");
+            br.style.height = "2px";
+            taskLi.appendChild(br);
+            taskLi.appendChild(metaSpan);
+          }
+        }
         tasksUl.appendChild(taskLi);
       });
       li.appendChild(tasksUl);
@@ -165,7 +293,16 @@ function renderTasks(tasks) {
 
   const hasAnyTasks = allTasks.length > 0;
   emptyState.classList.toggle("hidden", hasAnyTasks);
-  noResults.classList.toggle("hidden", hasAnyTasks || tasks.length > 0);
+  noResults.classList.toggle("hidden", hasAnyTasks && tasks.length > 0 ? true : (hasAnyTasks ? tasks.length !== 0 : true));
+  // Correct logic: hide noResults unless hasAnyTasks && filtered empty
+  if (hasAnyTasks && tasks.length === 0) {
+    noResults.classList.remove("hidden");
+    emptyState.classList.add("hidden");
+  } else if (!hasAnyTasks) {
+    noResults.classList.add("hidden");
+  } else {
+    noResults.classList.add("hidden");
+  }
 
   if (tasks.length === 0) return;
 
@@ -176,10 +313,18 @@ function renderTasks(tasks) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = task.completed;
+    checkbox.setAttribute("aria-label", task.completed ? "Mark as pending" : "Mark as completed");
     checkbox.addEventListener("change", async () => {
       try {
         await updateTaskStatus(task.id, checkbox.checked);
         li.classList.toggle("completed", checkbox.checked);
+        // Update status badge live
+        const statusBadge = li.querySelector(".status-badge");
+        if (statusBadge) {
+          statusBadge.textContent = checkbox.checked ? "Completed" : "Pending";
+          statusBadge.className = "status-badge " + (checkbox.checked ? "status-completed" : "status-pending");
+        }
+        checkbox.setAttribute("aria-label", checkbox.checked ? "Mark as pending" : "Mark as completed");
         await loadHistory();
       } catch (error) {
         console.error("Failed to update task:", error);
@@ -203,6 +348,11 @@ function renderTasks(tasks) {
     badge.textContent = task.priority || "Medium";
     meta.appendChild(badge);
 
+    const statusBadge = document.createElement("span");
+    statusBadge.className = "status-badge " + (task.completed ? "status-completed" : "status-pending");
+    statusBadge.textContent = task.completed ? "Completed" : "Pending";
+    meta.appendChild(statusBadge);
+
     if (task.description) {
       const description = document.createElement("span");
       description.className = "task-description";
@@ -217,6 +367,7 @@ function renderTasks(tasks) {
     deleteBtn.className = "delete-btn";
     deleteBtn.textContent = "\u2715";
     deleteBtn.title = "Delete task";
+    deleteBtn.setAttribute("aria-label", "Delete task: " + task.title);
     deleteBtn.addEventListener("click", async () => {
       try {
         await deleteTask(task.id);

@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Daily Task Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -19,7 +22,7 @@
   </div>
 
   <div class="layout" id="layout">
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar card" id="sidebar">
       <div class="sidebar-header">
         <span class="sidebar-brand">Tracker</span>
         <button id="sidebar-toggle" class="collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar">&#10094;</button>
@@ -28,6 +31,7 @@
       <section class="today-section">
         <h2>Today</h2>
         <p class="today-count"><span id="today-count">0</span> tasks done</p>
+        <p class="today-sub">Keep the momentum going</p>
       </section>
 
       <section class="history-section">
@@ -39,12 +43,26 @@
     <button id="sidebar-expand" class="expand-btn hidden" title="Expand sidebar" aria-label="Expand sidebar">&#10095;</button>
 
     <div class="container">
-      <header>
-        <h1>Daily Task Tracker</h1>
-        <p class="subtitle">Stay on top of your day, one task at a time.</p>
+      <header class="main-header card">
+        <div class="header-left">
+          <h1>Daily Task Tracker</h1>
+          <p class="subtitle">Stay on top of your day, one task at a time.</p>
+        </div>
+        <div class="header-actions">
+          <span id="app-version" class="version-badge" title="App version">v0.2.0</span>
+          <button id="theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle Dark/Light theme">
+            <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+            <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+            <span class="theme-label">Theme</span>
+          </button>
+        </div>
       </header>
 
-      <form id="task-form">
+      <form id="task-form" class="card">
+        <div class="form-header">
+          <h3 class="form-title">Add a new task</h3>
+          <p class="form-hint">What do you want to get done today?</p>
+        </div>
         <input type="text" id="task-title" placeholder="Task title" required />
         <div class="form-row">
           <input type="text" id="task-description" placeholder="Description (optional)" />
@@ -57,24 +75,44 @@
         <button type="submit">Add Task</button>
       </form>
 
-      <div class="toolbar">
-        <input type="search" id="search-input" placeholder="Search tasks..." />
-        <select id="filter-priority" title="Filter by priority">
-          <option value="all">All priorities</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
-        </select>
-        <select id="filter-status" title="Filter by status">
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-        </select>
+      <div class="toolbar card">
+        <div class="toolbar-search">
+          <span class="search-icon" aria-hidden="true">&#x1F50D;</span>
+          <input type="search" id="search-input" placeholder="Search tasks..." />
+        </div>
+        <div class="toolbar-filters">
+          <select id="filter-priority" title="Filter by priority">
+            <option value="all">All priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <select id="filter-status" title="Filter by status">
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
       </div>
 
-      <ul id="task-list"></ul>
-      <p id="empty-state" class="hidden">No tasks yet. Add your first task above!</p>
-      <p id="no-results" class="hidden">No tasks match your search or filters.</p>
+      <div class="tasks-wrapper card">
+        <ul id="task-list"></ul>
+        <div id="empty-state" class="empty-state hidden">
+          <div class="empty-illustration" aria-hidden="true">
+            <div class="empty-icon">&#x1F4CB;</div>
+            <div class="empty-glow"></div>
+          </div>
+          <h3>No tasks yet</h3>
+          <p>Add your first task above and start tracking your day.</p>
+        </div>
+        <div id="no-results" class="empty-state hidden">
+          <div class="empty-illustration" aria-hidden="true">
+            <div class="empty-icon">&#x1F50D;</div>
+          </div>
+          <h3>No matching tasks</h3>
+          <p>Try adjusting your search or filters.</p>
+        </div>
+      </div>
     </div>
   </div>
 

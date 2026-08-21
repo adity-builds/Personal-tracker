@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, Date, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from datetime import datetime
 from database import Base
 
 class TaskModel(Base):
@@ -8,7 +9,8 @@ class TaskModel(Base):
     title = Column(String, index=True)
     description = Column(String, nullable=True)
     completed = Column(Boolean, default=False)
-    completed_at = Column(Date, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
     priority = Column(String, default="Medium")
 
 class HistoryModel(Base):
@@ -17,4 +19,7 @@ class HistoryModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, nullable=True, index=True)
     title = Column(String)
-    completed_at = Column(Date, index=True)
+    description = Column(String, nullable=True)
+    priority = Column(String, default="Medium")
+    created_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, index=True)

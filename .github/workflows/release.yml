@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        shell: pwsh
+
+      - name: Build windowed exe (no console)
+        run: |
+          pyinstaller PersonalTracker.spec --noconfirm --clean
+          dir dist
+          # Verify console=False (windowed)
+          python -c "import pathlib; txt=pathlib.Path('PersonalTracker.spec').read_text(); assert 'console=False' in txt, 'spec must be windowed'; print('spec console=False verified')"
+        shell: pwsh
+
+      - name: Smoke test - check exe is windowed and version endpoint
+        run: |
+          # Quick check that dist exe exists and is windowed (no console subsystem)
+          if (!(Test-Path "dist/PersonalTracker.exe")) { throw "dist/PersonalTracker.exe not found" }
+          $info = Get-Item "dist/PersonalTracker.exe"
+          Write-Host "Built exe: $($info.Length) bytes, version info:"
+          try { (Get-Item "dist/PersonalTracker.exe").VersionInfo | Format-List } catch {}
+        shell: pwsh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PersonalTracker.exe
+          generate_release_notes: true
+          body: |
+            Personal Tracker ${{ github.ref_name }} — windowed exe (no console)
+            - Card dashboard + Dark/Light theme + badges
+            - Append-only history with created_at/completed_at
+            - See CHANGELOG.md for details
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

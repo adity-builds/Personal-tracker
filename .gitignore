@@ -1,3 +1,39 @@
+# Build artifacts
 build/
 dist/
-*.spec
+*.manifest
+*.pyinstaller
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Database (local user data - do not commit)
+tasks.db
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Keep the PyInstaller spec for releases - do NOT ignore PersonalTracker.spec
+!PersonalTracker.spec

@@ -1,9 +1,30 @@
-from datetime import date
+"""
+Personal Tracker v0.2.0
+Daily Task Tracker - Standalone Desktop App (FastAPI + pywebview)
+"""
+from datetime import datetime
 import os
 import sys
 import threading
 import time
 import urllib.request
+
+# --- Windowed exe: hide console immediately ---
+try:
+    import ctypes
+    # SW_HIDE = 0
+    whnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if whnd != 0:
+        ctypes.windll.user32.ShowWindow(whnd, 0)
+        ctypes.windll.kernel32.CloseHandle(whnd)
+except Exception:
+    pass
+
+# In windowed mode (console=False) stdout/stderr are None -> prevent crashes on print/logging
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
 
 import uvicorn
 import webview
@@ -18,17 +39,28 @@ import database
 import models
 import schemas
 
+try:
+    from version import __version__
+except ImportError:
+    __version__ = "0.2.0"
+
 HOST = "127.0.0.1"
 PORT = 8000
 
 def resource_path(relative_path: str) -> str:
+    # PyInstaller _MEIPASS for bundled static/, else project root
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
-    return os.path.join(base_path, relative_path)
+    path = os.path.join(base_path, relative_path)
+    if os.path.exists(path):
+        return path
+    # fallback for dev when cwd differs
+    alt = os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+    return alt if os.path.exists(alt) else path
 
 models.Base.metadata.create_all(bind=database.engine)
 database.migrate()
 
-app = FastAPI(title="Daily Task Tracker API")
+app = FastAPI(title="Daily Task Tracker API", version=__version__)
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,12 +83,18 @@ def get_db():
     finally:
         db.close()
 
+@app.get("/version")
+def get_version():
+    return {"version": __version__, "name": "Personal Tracker"}
+
 @app.post("/tasks/", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
     db_task = models.TaskModel(
         title=task.title,
         description=task.description,
         completed=False,
+        created_at=datetime.now(),
+        completed_at=None,
         priority=task.priority,
     )
     db.add(db_task)
@@ -78,29 +116,22 @@ def update_task_status(task_id: int, task_update: schemas.TaskUpdate, db: Sessio
     was_completed = db_task.completed
 
     db_task.completed = task_update.completed
-    db_task.completed_at = date.today() if task_update.completed else None
+    db_task.completed_at = datetime.now() if task_update.completed else None
     if task_update.priority is not None:
         db_task.priority = task_update.priority
 
-    history_entry = (
-        db.query(models.HistoryModel)
-        .filter(models.HistoryModel.task_id == task_id)
-        .first()
-    )
+    # Append-only history: every completion creates a new immutable record
     if task_update.completed and not was_completed:
-        if history_entry is None:
-            history_entry = models.HistoryModel(
-                task_id=task_id,
-                title=db_task.title,
-                completed_at=date.today(),
-            )
-            db.add(history_entry)
-        else:
-            history_entry.title = db_task.title
-            history_entry.completed_at = date.today()
-    elif not task_update.completed and was_completed:
-        if history_entry is not None:
-            db.delete(history_entry)
+        history_entry = models.HistoryModel(
+            task_id=task_id,
+            title=db_task.title,
+            description=db_task.description,
+            priority=db_task.priority,
+            created_at=db_task.created_at or datetime.now(),
+            completed_at=db_task.completed_at,
+        )
+        db.add(history_entry)
+    # Intentionally do NOT delete history when unchecking - history is audit trail
 
     db.commit()
     db.refresh(db_task)
@@ -116,12 +147,35 @@ def read_history(db: Session = Depends(get_db)):
         )
         .all()
     )
+    # Group by date part of completed_at (datetime -> date)
     grouped = {}
     for row in rows:
-        grouped.setdefault(row.completed_at, []).append(row.title)
+        if row.completed_at is None:
+            continue
+        completed = row.completed_at
+        if isinstance(completed, str):
+            try:
+                dt = datetime.fromisoformat(completed)
+                day = dt.date()
+            except Exception:
+                day_str = completed.split("T")[0].split(" ")[0]
+                from datetime import date as date_cls
+                day = date_cls.fromisoformat(day_str)
+        elif hasattr(completed, "date"):
+            day = completed.date() if isinstance(completed, datetime) else completed
+        else:
+            day = completed
+        detail = {
+            "title": row.title,
+            "description": row.description,
+            "priority": row.priority or "Medium",
+            "created_at": row.created_at,
+            "completed_at": row.completed_at,
+        }
+        grouped.setdefault(day, []).append(detail)
     return [
-        {"date": day, "count": len(titles), "tasks": titles}
-        for day, titles in grouped.items()
+        {"date": day, "count": len(details), "tasks": details}
+        for day, details in grouped.items()
     ]
 
 @app.delete("/tasks/{task_id}", response_model=dict)
@@ -161,7 +215,14 @@ class Api:
 
 
 def run_server() -> None:
-    config = uvicorn.Config(app, host=HOST, port=PORT, log_level="info")
+    # Windowed exe must not log to missing console
+    config = uvicorn.Config(
+        app,
+        host=HOST,
+        port=PORT,
+        log_level="critical",
+        access_log=False,
+    )
     server = uvicorn.Server(config)
     server.run()
 
@@ -178,6 +239,17 @@ def wait_for_server(timeout: float = 15.0) -> bool:
 
 
 if __name__ == "__main__":
+    # Required for PyInstaller windowed + multiprocessing
+    import multiprocessing
+    multiprocessing.freeze_support()
+
+    # Extra hide for cases where console was created before ctypes call
+    try:
+        import ctypes
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+    except Exception:
+        pass
+
     threading.Thread(target=run_server, daemon=True).start()
 
     if not wait_for_server():
@@ -194,4 +266,5 @@ if __name__ == "__main__":
         js_api=api,
     )
     api._window = window
-    webview.start()
+    # debug=False ensures no extra console/debug window
+    webview.start(debug=False)

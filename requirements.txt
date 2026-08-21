@@ -1,6 +1,11 @@
-fastapi
-uvicorn
-sqlalchemy
-pydantic
-pywebview
-pyinstaller
+# Personal Tracker v0.2.0 - pinned for reproducible builds
+fastapi==0.141.1
+uvicorn==0.52.4
+sqlalchemy==2.0.52
+pydantic==2.13.4
+pywebview==6.2.1
+pyinstaller==6.22.2
+# Transitive but required on Windows for pywebview/pyinstaller
+pythonnet==3.1.0
+clr_loader==0.3.1
+pywin32-ctypes==0.2.3
