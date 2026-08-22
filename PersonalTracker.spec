@@ -11,12 +11,14 @@ a = Analysis(
         ('static', 'static'),
         ('version.py', '.'),
         ('VERSION', '.'),
+        ('alembic', 'alembic'),  # migration scripts - runtime upgrade needs them
     ],
     hiddenimports=[
         'webview.platforms.winforms',
         'webview.platforms.edgechromium',
         'clr_loader',
         'pythonnet',
+        'alembic',
         'uvicorn.logging',
         'uvicorn.loops',
         'uvicorn.loops.auto',

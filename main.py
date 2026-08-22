@@ -57,8 +57,8 @@ def resource_path(relative_path: str) -> str:
     alt = os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
     return alt if os.path.exists(alt) else path
 
-models.Base.metadata.create_all(bind=database.engine)
-database.migrate()
+# Alembic owns schema creation/upgrades; legacy DBs are stamped as head
+database.init_db()
 
 app = FastAPI(title="Daily Task Tracker API", version=__version__)
 

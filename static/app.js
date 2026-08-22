@@ -1,5 +1,5 @@
-const API_URL = "http://127.0.0.1:8000/tasks/";
-const HISTORY_URL = "http://127.0.0.1:8000/history/";
+const API_URL = "/tasks/";
+const HISTORY_URL = "/history/";
 
 const form = document.getElementById("task-form");
 const titleInput = document.getElementById("task-title");
@@ -204,7 +204,6 @@ function renderHistory(history) {
 
           // Build timestamp line: Created -> Completed with time
           const created = task.created_at ? formatDateTime(task.created_at) : "";
-          const completed = task.completed_at ? formatTime(task.completed_at) : formatTime(task.completed_at);
           const completedFull = task.completed_at ? formatDateTime(task.completed_at) : "";
           let metaText = "";
           if (created && completedFull) {
@@ -293,16 +292,7 @@ function renderTasks(tasks) {
 
   const hasAnyTasks = allTasks.length > 0;
   emptyState.classList.toggle("hidden", hasAnyTasks);
-  noResults.classList.toggle("hidden", hasAnyTasks && tasks.length > 0 ? true : (hasAnyTasks ? tasks.length !== 0 : true));
-  // Correct logic: hide noResults unless hasAnyTasks && filtered empty
-  if (hasAnyTasks && tasks.length === 0) {
-    noResults.classList.remove("hidden");
-    emptyState.classList.add("hidden");
-  } else if (!hasAnyTasks) {
-    noResults.classList.add("hidden");
-  } else {
-    noResults.classList.add("hidden");
-  }
+  noResults.classList.toggle("hidden", !(hasAnyTasks && tasks.length === 0));
 
   if (tasks.length === 0) return;
 

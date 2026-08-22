@@ -21,16 +21,20 @@ Modern card-based desktop app for daily tasks — **FastAPI + SQLite + pywebview
 Personal Tracker/
 ├── main.py                 # FastAPI + pywebview launcher (v0.2.0, windowed)
 ├── version.py / VERSION    # Single source of truth
-├── database.py             # Engine + migrate() (handles DB path for frozen exe)
+├── database.py             # Engine + Alembic runner (PT_DB_PATH env override; frozen-exe paths)
 ├── models.py               # TaskModel, HistoryModel (DateTime timestamps)
 ├── schemas.py              # Pydantic schemas with HistoryTaskDetail
+├── alembic.ini             # Alembic config (dev CLI: autogenerate revisions)
+├── alembic/                # Migration chain (alembic/env.py + versions/)
+├── tests/                  # pytest suite - pip install -r requirements-dev.txt
 ├── file_version_info.txt   # Windows exe version resource (0.2.0.0)
 ├── PersonalTracker.spec    # PyInstaller windowed spec (console=False)
 ├── static/
 │   ├── index.html          # Dashboard + theme toggle + empty states
 │   ├── style.css           # CSS variables + cards + badges
 │   └── app.js              # Theme persistence + history timestamps
-├── requirements.txt        # Pinned deps
+├── requirements.txt        # Pinned deps (+ alembic)
+├── requirements-dev.txt    # Test deps (pytest, httpx)
 ├── CHANGELOG.md
 └── tasks.db                # SQLite (gitignored, stored next to exe or %APPDATA%)
 ```

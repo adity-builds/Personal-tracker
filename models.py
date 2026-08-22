@@ -9,7 +9,7 @@ class TaskModel(Base):
     title = Column(String, index=True)
     description = Column(String, nullable=True)
     completed = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     priority = Column(String, default="Medium")
 
