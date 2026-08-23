@@ -1,7 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Personal Tracker v0.2.0 - PyInstaller spec for windowed release
+# Personal Tracker v0.3.0 - PyInstaller spec for windowed release
 # Build with: pyinstaller PersonalTracker.spec  (--noconfirm)
 # Console is DISABLED for windowed exe (no black console on launch)
+
+import os
+
+# Optional app icon: builds stay green without assets/app.ico,
+# and the user-supplied icon is embedded automatically once present.
+APP_ICON = 'assets/app.ico'
+ICON_ARG = APP_ICON if os.path.exists(APP_ICON) else None
 
 a = Analysis(
     ['main.py'],
@@ -30,10 +37,9 @@ a = Analysis(
         'uvicorn.lifespan',
         'uvicorn.lifespan.on',
     ],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
+    # PIL/Pillow is only a local-dev convenience (icon conversion); the app
+    # never uses it at runtime. Excluding keeps local bundles identical to CI.
+    excludes=['PIL', 'PIL._imaging', 'PIL._imagingft'],
     noarchive=False,
     optimize=0,
 )
@@ -58,6 +64,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon=ICON_ARG,
     version='file_version_info.txt',
 )

@@ -12,6 +12,7 @@ TASK_COLUMNS = {
     "completed",
     "created_at",
     "completed_at",
+    "due_date",
     "priority",
 }
 HISTORY_COLUMNS = {

@@ -82,6 +82,173 @@ def test_update_priority_only(client, make_task):
     assert resp.json()["priority"] == "Low"
 
 
+def _future(days=7, hour=9, minute=0):
+    """Dynamic future deadline - tests must not rot as real time passes."""
+    from datetime import datetime, timedelta
+
+    dt = (datetime.now() + timedelta(days=days)).replace(
+        hour=hour, minute=minute, second=0, microsecond=0
+    )
+    return dt.isoformat()
+
+
+def test_create_task_with_due_date(client):
+    resp = client.post(
+        "/tasks/",
+        json={"title": "dated", "due_date": _future()},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["due_date"] is not None
+    assert body["due_date"] == _future() + ":00" or body["due_date"].startswith(_future()[:16])
+
+
+def test_create_task_rejects_past_due_date(client):
+    from datetime import datetime, timedelta
+
+    past = (datetime.now() - timedelta(days=2)).isoformat()
+    resp = client.post("/tasks/", json={"title": "late born", "due_date": past})
+    assert resp.status_code == 422
+
+
+def test_create_task_tolerates_current_minute_edge(client):
+    """Picking 'now' then submitting seconds later must not fail (60s grace)."""
+    from datetime import datetime, timedelta
+
+    almost_now = (datetime.now() - timedelta(seconds=30)).replace(microsecond=0)
+    resp = client.post("/tasks/", json={"title": "just in time", "due_date": almost_now.isoformat()})
+    assert resp.status_code == 200
+
+
+def test_edit_task_fields(client, make_task):
+    task = make_task("original", description="old", priority="Low")
+
+    resp = client.put(
+        f"/tasks/{task['id']}",
+        json={
+            "completed": False,
+            "title": "  renamed  ",
+            "description": "new note",
+            "priority": "High",
+            "due_date": _future(),
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["title"] == "renamed"  # trimmed
+    assert body["description"] == "new note"
+    assert body["priority"] == "High"
+    assert body["due_date"].startswith(_future()[:16])
+
+
+def test_edit_partial_payload_leaves_other_fields_untouched(client, make_task):
+    task = make_task("keep me", description="stable", priority="High")
+    client.put(f"/tasks/{task['id']}", json={"completed": False, "due_date": _future(14, 8)})
+
+    # completed-only payload (the old shape) must not wipe anything
+    resp = client.put(f"/tasks/{task['id']}", json={"completed": True})
+    body = resp.json()
+    assert body["description"] == "stable"
+    assert body["priority"] == "High"
+    assert body["due_date"].startswith(_future(14, 8)[:16])
+
+
+def test_edit_clears_due_date_with_explicit_null(client, make_task):
+    task = make_task("clearable")
+    client.put(f"/tasks/{task['id']}", json={"completed": False, "due_date": _future(3, 10)})
+
+    resp = client.put(f"/tasks/{task['id']}", json={"completed": False, "due_date": None})
+    assert resp.status_code == 200
+    assert resp.json()["due_date"] is None
+
+
+def test_edit_rejects_moving_deadline_into_the_past(client, make_task):
+    task = make_task("no backdating")
+    client.put(f"/tasks/{task['id']}", json={"completed": False, "due_date": _future()})
+
+    from datetime import datetime, timedelta
+
+    past = (datetime.now() - timedelta(hours=5)).replace(microsecond=0).isoformat()
+    resp = client.put(f"/tasks/{task['id']}", json={"completed": False, "due_date": past})
+    assert resp.status_code == 422
+
+
+def test_edit_rejects_empty_title(client, make_task):
+    task = make_task("valid")
+    resp = client.put(f"/tasks/{task['id']}", json={"completed": False, "title": "   "})
+    assert resp.status_code == 422
+
+
+def test_edit_missing_task_returns_404(client):
+    resp = client.put("/tasks/9999", json={"completed": False, "title": "ghost"})
+    assert resp.status_code == 404
+
+
+def test_completed_task_is_editable_but_not_uncheckable(client, make_task):
+    task = make_task("locked state", priority="Medium")
+    client.put(f"/tasks/{task['id']}", json={"completed": True})
+
+    resp = client.put(f"/tasks/{task['id']}", json={"completed": True, "title": "edited after done"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "edited after done"
+
+    blocked = client.put(f"/tasks/{task['id']}", json={"completed": False})
+    assert blocked.status_code == 409
+
+
+def test_edit_keeps_existing_overdue_deadline(client, make_task):
+    """A task that legitimately became overdue keeps its deadline on edit."""
+    import sys
+
+    assert "database" in sys.modules and "models" in sys.modules
+    database_mod = sys.modules["database"]
+    models_mod = sys.modules["models"]
+
+    from datetime import datetime, timedelta
+
+    overdue = (datetime.now() - timedelta(days=3)).replace(microsecond=0)
+
+    with database_mod.SessionLocal() as db:
+        db_task = models_mod.TaskModel(
+            title="overdue chore",
+            description=None,
+            completed=False,
+            created_at=datetime.now(),
+            completed_at=None,
+            due_date=overdue,
+            priority="High",
+        )
+        db.add(db_task)
+        db.commit()
+        db.refresh(db_task)
+        task_id = db_task.id
+
+    # Same deadline (minute precision) + other edits -> allowed
+    resp = client.put(
+        f"/tasks/{task_id}",
+        json={
+            "completed": False,
+            "title": "still overdue",
+            "priority": "Medium",
+            "due_date": overdue.isoformat(),
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["title"] == "still overdue"
+    assert body["priority"] == "Medium"
+    assert body["due_date"].startswith(overdue.isoformat()[:16])
+
+    # Moving to a *different* past deadline -> rejected
+    from datetime import timedelta as td
+
+    other_past = (datetime.now() - td(days=10)).replace(microsecond=0).isoformat()
+    resp2 = client.put(
+        f"/tasks/{task_id}", json={"completed": False, "due_date": other_past}
+    )
+    assert resp2.status_code == 422
+
+
 def test_update_missing_task_returns_404(client):
     resp = client.put("/tasks/9999", json={"completed": True})
     assert resp.status_code == 404

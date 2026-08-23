@@ -1,5 +1,9 @@
 /* ===== CSS Variables - Theme System ===== */
 :root {
+  /* Tells the engine to draw native widgets (picker icons, popups,
+     scrollbars, selects) in their light variants */
+  color-scheme: light;
+
   --bg: #f1f5f9;
   --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --card: #ffffff;
@@ -42,6 +46,10 @@
 }
 
 [data-theme="dark"] {
+  /* Native widgets switch to white-on-dark: calendar/clock picker icons
+     become visible, and the popups themselves render dark */
+  color-scheme: dark;
+
   --bg: #0f172a;
   --card: #1e293b;
   --card-hover: #243447;
@@ -76,6 +84,15 @@
   --history-bg: #0f172a;
   --history-border: #334155;
   --toolbar-bg: #1e293b;
+}
+
+/* Fallback for engines that ignore color-scheme: invert the dark glyphs.
+   Skipped on modern engines (where icons are already white) via @supports. */
+@supports not (color-scheme: dark) {
+  [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.92);
+  }
 }
 
 /* ===== Reset & Base ===== */
@@ -359,6 +376,108 @@ body::before {
   margin-top: 6px;
   font-size: 12px;
   color: rgba(255,255,255,0.75);
+  font-weight: 500;
+}
+
+/* ===== Insights (stats panel + 7-day chart) ===== */
+.stats-section h2 {
+  margin-bottom: 10px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-box {
+  background: var(--history-bg);
+  border: 1px solid var(--history-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: all 0.2s ease;
+}
+
+.stat-box:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-flame {
+  font-size: 12px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+#stats-chart {
+  width: 100%;
+  height: auto;
+  margin-top: 10px;
+  background: var(--history-bg);
+  border: 1px solid var(--history-border);
+  border-radius: 10px;
+  padding: 6px 4px 2px;
+}
+
+.chart-baseline {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.chart-bar {
+  fill: var(--border-strong);
+  transition: fill 0.2s ease;
+}
+
+.chart-bar:hover,
+.chart-bar:focus {
+  outline: none;
+  fill: var(--primary-hover);
+}
+
+.chart-bar-today {
+  fill: var(--primary);
+}
+
+.chart-count {
+  fill: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.chart-day {
+  fill: var(--text-faint);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.chart-day-today {
+  fill: var(--primary);
+}
+
+.stats-best {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -870,7 +989,8 @@ body::before {
 
 /* ===== Badges ===== */
 .priority-badge,
-.status-badge {
+.status-badge,
+.due-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -926,6 +1046,28 @@ body::before {
   border-color: rgba(22,163,74,0.15);
 }
 
+.due-badge {
+  font-weight: 700;
+}
+
+.badge-overdue {
+  background: var(--badge-high-bg);
+  color: var(--badge-high-fg);
+  border-color: rgba(220,38,38,0.2);
+}
+
+.badge-due-today {
+  background: var(--badge-medium-bg);
+  color: var(--badge-medium-fg);
+  border-color: rgba(245,158,11,0.2);
+}
+
+.task-due-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .task-item.completed .priority-badge,
 .task-item.completed .status-badge {
   opacity: 0.65;
@@ -979,6 +1121,187 @@ body::before {
 
 .delete-btn:active {
   transform: scale(0.95);
+}
+
+.edit-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-faint);
+  font-size: 15px;
+  cursor: pointer;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.edit-btn:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: rgba(102,126,234,0.25);
+  transform: scale(1.05);
+}
+
+[data-theme="dark"] .edit-btn:hover {
+  border-color: rgba(129,140,248,0.35);
+}
+
+.edit-btn:active {
+  transform: scale(0.95);
+}
+
+/* ===== Edit Modal ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  animation: overlayIn 0.18s ease;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  width: min(480px, 100%);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn 0.18s ease;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal input,
+.modal select,
+.modal textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal textarea {
+  resize: vertical;
+  min-height: 56px;
+  max-height: 160px;
+}
+
+.modal select {
+  cursor: pointer;
+  max-width: 160px;
+}
+
+.modal input::placeholder,
+.modal textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+}
+[data-theme="dark"] .modal input:focus,
+[data-theme="dark"] .modal select:focus,
+[data-theme="dark"] .modal textarea:focus {
+  box-shadow: 0 0 0 3px rgba(129,140,248,0.2);
+}
+
+.modal input[type="date"] {
+  flex: 1.4;
+  max-width: none;
+}
+
+.modal input[type="time"] {
+  flex: 1;
+}
+
+.modal-error {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ef4444;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+}
+
+.btn-secondary {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn-secondary:hover {
+  color: var(--text);
+  border-color: var(--text-faint);
+  background: var(--history-bg);
+}
+
+body.modal-open {
+  overflow: hidden;
 }
 
 /* ===== Empty States ===== */

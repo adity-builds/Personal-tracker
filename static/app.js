@@ -1,10 +1,14 @@
 const API_URL = "/tasks/";
 const HISTORY_URL = "/history/";
+const STATS_URL = "/stats/";
 
 const form = document.getElementById("task-form");
 const titleInput = document.getElementById("task-title");
 const descriptionInput = document.getElementById("task-description");
 const priorityInput = document.getElementById("task-priority");
+const dueDateInput = document.getElementById("task-due-date");
+const dueTimeInput = document.getElementById("task-due-time");
+const formError = document.getElementById("task-form-error");
 const searchInput = document.getElementById("search-input");
 const filterPriority = document.getElementById("filter-priority");
 const filterStatus = document.getElementById("filter-status");
@@ -13,6 +17,10 @@ const emptyState = document.getElementById("empty-state");
 const noResults = document.getElementById("no-results");
 const todayCount = document.getElementById("today-count");
 const historyList = document.getElementById("history-list");
+const statStreak = document.getElementById("stat-streak");
+const statTotal = document.getElementById("stat-total");
+const statsChart = document.getElementById("stats-chart");
+const statsBest = document.getElementById("stats-best");
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebar-toggle");
 const sidebarExpand = document.getElementById("sidebar-expand");
@@ -21,6 +29,46 @@ const themeToggle = document.getElementById("theme-toggle");
 const PRIORITY_ORDER = { High: 0, Medium: 1, Low: 2 };
 
 let allTasks = [];
+
+/* ===== Edit modal state ===== */
+const editModal = document.getElementById("edit-modal");
+const editTitle = document.getElementById("edit-title");
+const editDescription = document.getElementById("edit-description");
+const editDueDate = document.getElementById("edit-due-date");
+const editDueTime = document.getElementById("edit-due-time");
+const editPriority = document.getElementById("edit-priority");
+const editError = document.getElementById("edit-error");
+const editSaveBtn = document.getElementById("edit-save");
+const editCancelBtn = document.getElementById("edit-cancel");
+
+let editingTaskId = null;
+
+/* Deadline inputs must not offer datetimes in the past. */
+function showFormError(message) {
+  formError.textContent = message;
+  formError.classList.remove("hidden");
+}
+
+function hideFormError() {
+  formError.textContent = "";
+  formError.classList.add("hidden");
+}
+
+function refreshDeadlineMins() {
+  if (typeof TrackerCore === "undefined") return;
+  // Calendar picker can't offer days before today; the clock stays free-form
+  // because combined past-time validation happens on submit (isPastDeadline).
+  const today = TrackerCore.todayString(new Date());
+  dueDateInput.min = today;
+  editDueDate.min = today;
+}
+
+function getDeadlineValue(dateInput, timeInput) {
+  if (typeof TrackerCore === "undefined") {
+    return dateInput.value || null;
+  }
+  return TrackerCore.combineDeadline(dateInput.value, timeInput.value);
+}
 
 /* ===== Theme System - CSS variables + localStorage persistence ===== */
 const THEME_KEY = "daily-tracker-theme";
@@ -249,6 +297,106 @@ async function loadHistory() {
   renderHistory(history);
 }
 
+/* ===== Insights (Phase 3) ===== */
+const SVG_NS = "http://www.w3.org/2000/svg";
+const CHART_W = 224;
+const CHART_H = 92;
+const CHART_TOP = 14;      // headroom for count labels
+const CHART_BASELINE = 74; // bars grow down to this y
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+
+function svgEl(tag, attrs, text) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const key in attrs) el.setAttribute(key, attrs[key]);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+function renderStatsChart(last7Days) {
+  statsChart.innerHTML = "";
+
+  // Baseline so zero-days still read as part of the chart
+  statsChart.appendChild(svgEl("line", {
+    x1: 4, x2: CHART_W - 4, y1: CHART_BASELINE, y2: CHART_BASELINE,
+    class: "chart-baseline",
+  }));
+
+  const maxCount = Math.max(...last7Days.map((d) => d.count), 1);
+  const slot = CHART_W / last7Days.length;
+  const barW = 18;
+  const today = todayString();
+
+  last7Days.forEach((day, i) => {
+    const slotX = i * slot + (slot - barW) / 2;
+    const barH = day.count > 0 ? Math.max(6, Math.round((day.count / maxCount) * (CHART_BASELINE - CHART_TOP))) : 0;
+    const isToday = day.date === today;
+
+    if (day.count > 0) {
+      const rect = svgEl("rect", {
+        x: slotX,
+        y: CHART_BASELINE - barH,
+        width: barW,
+        height: barH,
+        rx: 4,
+        class: "chart-bar" + (isToday ? " chart-bar-today" : ""),
+      });
+      const tip = `${formatDate(day.date)} — ${day.count} completed`;
+      rect.setAttribute("tabindex", "0");
+      const title = svgEl("title", {}, tip);
+      rect.appendChild(title);
+      statsChart.appendChild(rect);
+
+      statsChart.appendChild(svgEl("text", {
+        x: slotX + barW / 2,
+        y: CHART_BASELINE - barH - 4,
+        "text-anchor": "middle",
+        class: "chart-count",
+      }, String(day.count)));
+    }
+
+    const weekdayLetter = typeof TrackerCore !== "undefined"
+      ? WEEKDAYS[TrackerCore.parseDateOnly(day.date).getDay()]
+      : "";
+    const labelAttrs = {
+      x: slotX + barW / 2,
+      y: CHART_H - 4,
+      "text-anchor": "middle",
+      class: "chart-day" + (isToday ? " chart-day-today" : ""),
+    };
+    statsChart.appendChild(svgEl("text", labelAttrs, weekdayLetter));
+  });
+}
+
+async function fetchStats() {
+  try {
+    const response = await fetch(STATS_URL);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch stats:", error);
+    return null;
+  }
+}
+
+async function loadStats() {
+  if (!statStreak || !statsChart) return;
+  const stats = await fetchStats();
+  if (!stats) return;
+
+  statStreak.textContent = String(stats.current_streak);
+  statTotal.textContent = String(stats.total_completions);
+
+  renderStatsChart(stats.last_7_days || []);
+
+  if (stats.best_day && stats.best_day_count > 0) {
+    statsBest.textContent = `Best day: ${formatDate(stats.best_day)} (${stats.best_day_count})`;
+    statsBest.classList.remove("hidden");
+  } else {
+    statsBest.textContent = "";
+    statsBest.classList.add("hidden");
+  }
+}
+
 async function fetchTasks() {
   try {
     const response = await fetch(API_URL);
@@ -260,13 +408,28 @@ async function fetchTasks() {
   }
 }
 
-async function createTask(title, description, priority) {
+/* Turns non-2xx responses into Errors carrying a readable server message. */
+async function apiError(response, fallback) {
+  let detail = fallback;
+  try {
+    const data = await response.json();
+    if (typeof data.detail === "string") detail = data.detail;
+    else if (Array.isArray(data.detail)) {
+      detail = data.detail.map((d) => d.msg || JSON.stringify(d)).join(", ");
+    }
+  } catch (e) {
+    /* keep fallback */
+  }
+  return new Error(detail || `HTTP ${response.status}`);
+}
+
+async function createTask(title, description, priority, dueDate) {
   const response = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, description, priority }),
+    body: JSON.stringify({ title, description, priority, due_date: dueDate }),
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) throw await apiError(response, "Could not add task.");
   return response.json();
 }
 
@@ -277,6 +440,18 @@ async function updateTaskStatus(taskId, completed) {
     body: JSON.stringify({ completed }),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+/* Full edit: only sends editable fields; completion state is preserved as-is
+   (completed tasks cannot be unchecked - server enforces with 409). */
+async function updateTask(taskId, payload) {
+  const response = await fetch(`${API_URL}${taskId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw await apiError(response, "Could not save changes.");
   return response.json();
 }
 
@@ -319,8 +494,11 @@ function renderTasks(tasks) {
           statusBadge.textContent = checkbox.checked ? "Completed" : "Pending";
           statusBadge.className = "status-badge " + (checkbox.checked ? "status-completed" : "status-pending");
         }
-        checkbox.setAttribute("aria-label", checkbox.checked ? "Mark as pending" : "Mark as completed");
+        checkbox.setAttribute("aria-label", checkbox.checked ? "Completed (cannot be unchecked)" : "Mark as completed");
+        checkbox.title = checkbox.checked ? "Completed tasks can't be unchecked" : "";
+        checkbox.disabled = checkbox.checked;
         await loadHistory();
+        await loadStats();
       } catch (error) {
         console.error("Failed to update task:", error);
         checkbox.checked = !checkbox.checked;
@@ -348,6 +526,35 @@ function renderTasks(tasks) {
     statusBadge.textContent = task.completed ? "Completed" : "Pending";
     meta.appendChild(statusBadge);
 
+    // Due date badge + label (urgency logic lives in TrackerCore)
+    if (task.due_date) {
+      const urgency = typeof TrackerCore !== "undefined" ? TrackerCore.dueStatus(task) : null;
+      const dueDay = String(task.due_date).slice(0, 10);
+      const dueText = new Date(
+        Number(dueDay.slice(0, 4)),
+        Number(dueDay.slice(5, 7)) - 1,
+        Number(dueDay.slice(8, 10))
+      ).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+      let labelText = "Due " + dueText;
+      if (typeof TrackerCore !== "undefined" && TrackerCore.hasTimeComponent(task.due_date)) {
+        labelText += ", " + formatTime(task.due_date);
+      }
+
+      const dueLabel = document.createElement("span");
+      dueLabel.className = "task-due-text";
+      dueLabel.textContent = labelText;
+
+      if (urgency) {
+        const dueBadge = document.createElement("span");
+        dueBadge.className =
+          "due-badge " + (urgency === "overdue" ? "badge-overdue" : "badge-due-today");
+        dueBadge.textContent = urgency === "overdue" ? "Overdue" : "Due today";
+        meta.appendChild(dueBadge);
+      }
+      meta.appendChild(dueLabel);
+    }
+
     if (task.description) {
       const description = document.createElement("span");
       description.className = "task-description";
@@ -357,6 +564,13 @@ function renderTasks(tasks) {
 
     content.appendChild(title);
     content.appendChild(meta);
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "edit-btn";
+    editBtn.textContent = "\u270E";
+    editBtn.title = "Edit task";
+    editBtn.setAttribute("aria-label", "Edit task: " + task.title);
+    editBtn.addEventListener("click", () => openEditModal(task));
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
@@ -376,6 +590,7 @@ function renderTasks(tasks) {
 
     li.appendChild(checkbox);
     li.appendChild(content);
+    li.appendChild(editBtn);
     li.appendChild(deleteBtn);
     taskList.appendChild(li);
   });
@@ -387,18 +602,129 @@ form.addEventListener("submit", async (event) => {
   const title = titleInput.value.trim();
   const description = descriptionInput.value.trim();
   const priority = priorityInput.value;
+  const dueDate = getDeadlineValue(dueDateInput, dueTimeInput);
 
   if (!title) return;
 
+  // Belt-and-braces guard: the date picker's min already blocks past days
+  if (dueDate && typeof TrackerCore !== "undefined" && TrackerCore.isPastDeadline(dueDateInput.value, dueTimeInput.value, new Date(), 1)) {
+    showFormError("The deadline can't be in the past.");
+    return;
+  }
+
   try {
-    await createTask(title, description || null, priority);
+    await createTask(title, description || null, priority, dueDate);
     titleInput.value = "";
     descriptionInput.value = "";
     priorityInput.value = "Medium";
+    dueDateInput.value = "";
+    dueTimeInput.value = "";
+    hideFormError();
+    refreshDeadlineMins();
     await loadTasks();
   } catch (error) {
     console.error("Failed to create task:", error);
-    alert("Could not add task.");
+    showFormError(error.message || "Could not add task.");
+  }
+});
+
+/* ===== Edit modal ===== */
+function openEditModal(task) {
+  editingTaskId = task.id;
+  editTitle.value = task.title || "";
+  editDescription.value = task.description || "";
+  // Split stored deadline ("...T14:30:00") into the calendar + clock fields.
+  // Existing (possibly overdue) deadlines load as-is - only NEW past entries are blocked.
+  editDueDate.value = task.due_date ? String(task.due_date).slice(0, 10) : "";
+  editDueTime.value =
+    typeof TrackerCore !== "undefined" && TrackerCore.hasTimeComponent(task.due_date)
+      ? String(task.due_date).slice(11, 16)
+      : "";
+  editPriority.value = task.priority || "Medium";
+  hideEditError();
+  refreshDeadlineMins();
+  editModal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  editTitle.focus();
+}
+
+function closeEditModal() {
+  editingTaskId = null;
+  editModal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+function showEditError(message) {
+  editError.textContent = message;
+  editError.classList.remove("hidden");
+}
+
+function hideEditError() {
+  editError.textContent = "";
+  editError.classList.add("hidden");
+}
+
+editSaveBtn.addEventListener("click", async () => {
+  const taskId = editingTaskId;
+  if (taskId === null) return;
+
+  const title = editTitle.value.trim();
+  if (!title) {
+    showEditError("Title cannot be empty.");
+    return;
+  }
+
+  const original = allTasks.find((t) => t.id === taskId);
+  if (!original) {
+    closeEditModal();
+    await loadTasks();
+    return;
+  }
+
+  const dueValue = getDeadlineValue(editDueDate, editDueTime);
+  // Allow keeping the task's existing (possibly overdue) deadline untouched;
+  // block picking a NEW date/time that is already in the past.
+  const keptExisting = dueValue !== null &&
+    typeof TrackerCore !== "undefined" && TrackerCore.sameMinute(dueValue, original.due_date);
+  if (
+    dueValue && !keptExisting &&
+    typeof TrackerCore !== "undefined" &&
+    TrackerCore.isPastDeadline(editDueDate.value, editDueTime.value, new Date(), 1)
+  ) {
+    showEditError("The deadline can't be in the past.");
+    return;
+  }
+
+  const payload = {
+    completed: original.completed,
+    title,
+    description: editDescription.value.trim() || null,
+    priority: editPriority.value,
+    due_date: dueValue,
+  };
+
+  editSaveBtn.disabled = true;
+  try {
+    await updateTask(taskId, payload);
+    closeEditModal();
+    await loadTasks();
+  } catch (error) {
+    console.error("Failed to update task:", error);
+    showEditError(error.message || "Could not save changes.");
+  } finally {
+    editSaveBtn.disabled = false;
+  }
+});
+
+editCancelBtn.addEventListener("click", closeEditModal);
+
+editModal.addEventListener("click", (event) => {
+  if (event.target === editModal) closeEditModal();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !editModal.classList.contains("hidden")) {
+    closeEditModal();
   }
 });
 
@@ -418,11 +744,16 @@ function getFilteredTasks() {
       }
       return true;
     })
-    .sort((a, b) => {
-      const orderDiff = PRIORITY_ORDER[a.priority || "Medium"] - PRIORITY_ORDER[b.priority || "Medium"];
-      if (orderDiff !== 0) return orderDiff;
-      return a.id - b.id;
-    });
+    .sort(
+      typeof TrackerCore !== "undefined" && TrackerCore
+        ? (a, b) => TrackerCore.compareTasks(a, b)
+        : (a, b) => {
+            // Fallback if core.js failed to load: old priority/id order
+            const orderDiff = PRIORITY_ORDER[a.priority || "Medium"] - PRIORITY_ORDER[b.priority || "Medium"];
+            if (orderDiff !== 0) return orderDiff;
+            return a.id - b.id;
+          }
+    );
 }
 
 async function loadTasks() {
@@ -437,6 +768,8 @@ filterStatus.addEventListener("change", () => renderTasks(getFilteredTasks()));
 
 loadTasks();
 loadHistory();
+loadStats();
+refreshDeadlineMins();
 
 function getWindowApi() {
   return window.pywebview && window.pywebview.api;

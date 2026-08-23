@@ -45,15 +45,43 @@ jobs:
           try { (Get-Item "dist/PersonalTracker.exe").VersionInfo | Format-List } catch {}
         shell: pwsh
 
+      - name: Build installer (Inno Setup)
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            Write-Host "ISCC not found - installing Inno Setup via chocolatey"
+            choco install innosetup -y --no-progress
+            $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          }
+          if (!(Test-Path $iscc)) { throw "ISCC.exe not found after Inno Setup install" }
+
+          $version = (Get-Content "VERSION" -Raw).Trim()
+          if (!$version) { throw "VERSION file is empty" }
+          Write-Host "Compiling installer for v$version"
+          & $iscc "installer/personal_tracker.iss" "/DAppVersion=$version"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+
+          if (!(Test-Path "dist/PersonalTrackerSetup-v$version.exe")) {
+            throw "installer exe missing from dist/"
+          }
+          Get-ChildItem dist | Format-Table Name, Length
+        shell: pwsh
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/PersonalTracker.exe
+          files: |
+            dist/PersonalTracker.exe
+            dist/PersonalTrackerSetup-v*.exe
           generate_release_notes: true
           body: |
-            Personal Tracker ${{ github.ref_name }} — windowed exe (no console)
-            - Card dashboard + Dark/Light theme + badges
-            - Append-only history with created_at/completed_at
-            - See CHANGELOG.md for details
+            Personal Tracker ${{ github.ref_name }} — proper installer + portable exe
+
+            **Downloads**
+            - `PersonalTrackerSetup-v…exe` — recommended: Start Menu shortcut, uninstaller, auto-updates location in Program Files
+            - `PersonalTracker.exe` — portable single file, no installation
+
+            **Note:** the installed version stores task data in `%APPDATA%\PersonalTracker\tasks.db`,
+            while the portable exe keeps `tasks.db` next to itself. See README for details.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

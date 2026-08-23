@@ -77,6 +77,8 @@ def _legacy_fixups(engine) -> None:
         stmts.append(
             "UPDATE tasks SET created_at = datetime('now') WHERE created_at IS NULL"
         )
+    if "due_date" not in task_cols:
+        stmts.append("ALTER TABLE tasks ADD COLUMN due_date DATETIME")
 
     if "history" not in tables:
         stmts.append(

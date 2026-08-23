@@ -1,8 +1,8 @@
 """
-Personal Tracker v0.2.0
+Personal Tracker v0.3.0
 Daily Task Tracker - Standalone Desktop App (FastAPI + pywebview)
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import sys
 import threading
@@ -42,7 +42,7 @@ import schemas
 try:
     from version import __version__
 except ImportError:
-    __version__ = "0.2.0"
+    __version__ = "0.3.0"
 
 HOST = "127.0.0.1"
 PORT = 8000
@@ -83,18 +83,38 @@ def get_db():
     finally:
         db.close()
 
+def _reject_past_due(provided: datetime | None, stored: datetime | None) -> None:
+    """Deadlines must be in the future when (re)set.
+
+    - 60s grace so picking the current minute never fails on submit lag.
+    - Keeping a task's existing deadline is always allowed, even if it already
+      slipped into the past (that's what the Overdue badge is for).
+    """
+    if provided is None:
+        return
+    if provided < datetime.now() - timedelta(seconds=60):
+        same_as_stored = (
+            stored is not None
+            and provided.replace(tzinfo=None, second=0, microsecond=0)
+            == stored.replace(tzinfo=None, second=0, microsecond=0)
+        )
+        if not same_as_stored:
+            raise HTTPException(status_code=422, detail="Deadline can't be in the past")
+
 @app.get("/version")
 def get_version():
     return {"version": __version__, "name": "Personal Tracker"}
 
 @app.post("/tasks/", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
+    _reject_past_due(task.due_date, None)
     db_task = models.TaskModel(
         title=task.title,
         description=task.description,
         completed=False,
         created_at=datetime.now(),
         completed_at=None,
+        due_date=task.due_date,
         priority=task.priority,
     )
     db.add(db_task)
@@ -119,6 +139,22 @@ def update_task_status(task_id: int, task_update: schemas.TaskUpdate, db: Sessio
     if was_completed and not task_update.completed:
         raise HTTPException(status_code=409, detail="Completed tasks cannot be unchecked")
 
+    # Editable fields: only apply what the client explicitly sent (PATCH-style,
+    # explicit null clears). Keeps old {completed}-only payloads backward compatible.
+    provided = task_update.model_fields_set
+    if "due_date" in provided:
+        _reject_past_due(task_update.due_date, db_task.due_date)
+    if "title" in provided:
+        if not task_update.title or not task_update.title.strip():
+            raise HTTPException(status_code=422, detail="Title cannot be empty")
+        db_task.title = task_update.title.strip()
+    if "description" in provided:
+        db_task.description = task_update.description
+    if "due_date" in provided:
+        db_task.due_date = task_update.due_date
+    if task_update.priority is not None:
+        db_task.priority = task_update.priority
+
     db_task.completed = task_update.completed
     if task_update.completed:
         # Stamp/append only on the pending -> completed transition;
@@ -137,9 +173,6 @@ def update_task_status(task_id: int, task_update: schemas.TaskUpdate, db: Sessio
             db.add(history_entry)
     else:
         db_task.completed_at = None
-
-    if task_update.priority is not None:
-        db_task.priority = task_update.priority
 
     db.commit()
     db.refresh(db_task)
@@ -185,6 +218,60 @@ def read_history(db: Session = Depends(get_db)):
         {"date": day, "count": len(details), "tasks": details}
         for day, details in grouped.items()
     ]
+
+@app.get("/stats/", response_model=schemas.StatsSummary)
+def read_stats(db: Session = Depends(get_db)):
+    """Insights computed from the immutable history table.
+
+    - current_streak: consecutive days with >=1 completion, walking back from
+      today (today itself may still be empty without breaking the streak -
+      yesterday then anchors it).
+    - last_7_days: chronological counts ending today.
+    """
+    from datetime import timedelta
+
+    today = datetime.now().date()
+
+    rows = db.query(models.HistoryModel).all()
+    per_day = {}
+    by_priority = {"High": 0, "Medium": 0, "Low": 0}
+    total = 0
+    for row in rows:
+        if row.completed_at is None:
+            continue
+        completed = row.completed_at
+        day = completed.date() if isinstance(completed, datetime) else completed
+        per_day[day] = per_day.get(day, 0) + 1
+        priority = (row.priority or "Medium").strip().title() or "Medium"
+        by_priority[priority] = by_priority.get(priority, 0) + 1
+        total += 1
+
+    # Streak: anchor on yesterday when today has no completions yet
+    streak = 0
+    cursor = today if today in per_day else today - timedelta(days=1)
+    while cursor in per_day:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    if per_day:
+        # ties broken by most recent day
+        best_day, best_count = max(per_day.items(), key=lambda kv: (kv[1], kv[0]))
+    else:
+        best_day, best_count = None, 0
+
+    last_7_days = [
+        {"date": today - timedelta(days=offset), "count": per_day.get(today - timedelta(days=offset), 0)}
+        for offset in range(6, -1, -1)
+    ]
+
+    return {
+        "total_completions": total,
+        "current_streak": streak,
+        "best_day": best_day,
+        "best_day_count": best_count,
+        "last_7_days": last_7_days,
+        "by_priority": by_priority,
+    }
 
 @app.delete("/tasks/{task_id}", response_model=dict)
 def delete_task(task_id: int, db: Session = Depends(get_db)):

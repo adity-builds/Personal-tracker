@@ -3,9 +3,35 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-08-23
+
+### Added
+- **Proper Windows installer (v0.3 Phase 4)** (`installer/personal_tracker.iss:1`, `.github/workflows/release.yml:31`, `PersonalTracker.spec:5`)
+  - Inno Setup wizard: installs to Program Files, Start Menu shortcut, optional desktop icon, and a real uninstaller in Add/Remove Programs
+  - Uninstaller never touches user data — installed builds keep `tasks.db` in `%APPDATA%\PersonalTracker` (existing fallback path)
+  - Release workflow now compiles `PersonalTrackerSetup-v<version>.exe` and ships **both** installer and portable exe
+  - App icon auto-activates when `assets/app.ico` is supplied (exe embedding + installer wizard + shortcuts); builds stay green without it
+- **Insights dashboard (v0.3 Phase 3)** (`main.py:222`, `static/index.html:36`, `static/app.js:1`)
+  - `GET /stats/` computed from immutable history: total completions, current streak (today may be empty without breaking it), best day (ties → most recent), chronological last-7-days window, per-priority counts
+  - Sidebar "Insights" panel: streak counter with flame, all-time total, inline-SVG 7-day bar chart (dependency-free; today's bar highlighted, weekday labels, hover/focus tooltips) and a best-day line
+- **Frontend editing UX (v0.3 Phase 2)** (`static/core.js:1`, `static/app.js:1`, `static/index.html:61`)
+  - Edit modal with title/description/priority/deadline fields; pencil button on every task card; closes via Cancel, overlay click, or `Escape`
+  - Timed deadlines via split calendar + clock pickers (`type="date"` / `type="time"`) on create + edit forms, with `min` guard and inline errors so past deadlines can't be entered
+  - Red `Overdue` / amber `Due today` badges plus "Due <date>, <time>" labels on cards
+  - Sorting: overdue → due-today → rest within each priority band (`TrackerCore.compareTasks`)
+  - New dependency-free `static/core.js` (`TrackerCore`) holds all date/sort logic — timezone-safe local-date parsing, past-deadline detection with submit-lag grace — unit-tested headlessly via `node tests/test_core_logic.js` (25 tests)
+  - Server enforces the same rule: `POST/PUT` reject newly-set deadlines in the past (`422`, 60s grace), while a task's own overdue deadline stays editable
+- **Task due dates + full edit support (v0.3 Phase 1)** (`models.py:14`, `alembic/versions/c3f8a91d2e47_add_tasks_due_date.py:1`, `main.py:111`)
+  - `tasks.due_date: DateTime` nullable column via Alembic revision `c3f8a91d2e47`; legacy pre-Alembic DBs get it through `_legacy_fixups` before stamping
+  - `POST /tasks/` accepts optional `due_date`
+  - `PUT /tasks/{task_id}` now edits too: optional `title`, `description`, `due_date` applied only when explicitly sent (explicit `null` clears); whitespace-only title rejected with `422`
+  - Completed tasks stay editable but still cannot be unchecked (`409`)
+- **ROADMAP.md** — phased plan for v0.3 (editing/due dates/stats/installer), v0.4 data safety, v0.5 QoL
 
 ### Fixed
+- **Calendar/clock picker icons invisible in dark mode** (`static/style.css:2`)
+  - `color-scheme: light` / `dark` now follows the theme, so native picker glyphs render white in dark mode and the popups themselves render dark
+  - `@supports`-guarded `invert()` fallback for engines without `color-scheme`
 - **Completed tasks can no longer be unchecked** (`main.py:116`, `static/app.js:305`)
   - `PUT /tasks/{task_id}` now rejects `completed: true → false` with `409 Completed tasks cannot be unchecked`, so toggling a task can never flood the History sidebar with duplicate entries
   - Frontend disables the checkbox for completed tasks (`cursor: not-allowed` + tooltip) so the state can't be changed by accident

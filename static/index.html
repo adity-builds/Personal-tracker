@@ -34,6 +34,22 @@
         <p class="today-sub">Keep the momentum going</p>
       </section>
 
+      <section class="stats-section">
+        <h2>Insights</h2>
+        <div class="stats-grid">
+          <div class="stat-box" title="Consecutive days with at least one completion">
+            <span class="stat-value"><span id="stat-streak">0</span><span class="stat-flame" aria-hidden="true">&#128293;</span></span>
+            <span class="stat-label">day streak</span>
+          </div>
+          <div class="stat-box" title="Total completions of all time">
+            <span class="stat-value" id="stat-total">0</span>
+            <span class="stat-label">done all-time</span>
+          </div>
+        </div>
+        <svg id="stats-chart" viewBox="0 0 224 92" role="img" aria-label="Completions over the last 7 days"></svg>
+        <p class="stats-best hidden" id="stats-best"></p>
+      </section>
+
       <section class="history-section">
         <h2>History</h2>
         <ul id="history-list"></ul>
@@ -49,7 +65,7 @@
           <p class="subtitle">Stay on top of your day, one task at a time.</p>
         </div>
         <div class="header-actions">
-          <span id="app-version" class="version-badge" title="App version">v0.2.0</span>
+          <span id="app-version" class="version-badge" title="App version">v0.3.0</span>
           <button id="theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle Dark/Light theme">
             <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
             <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
@@ -64,14 +80,17 @@
           <p class="form-hint">What do you want to get done today?</p>
         </div>
         <input type="text" id="task-title" placeholder="Task title" required />
+        <input type="text" id="task-description" placeholder="Description (optional)" />
         <div class="form-row">
-          <input type="text" id="task-description" placeholder="Description (optional)" />
+          <input type="date" id="task-due-date" title="Deadline date (optional)" aria-label="Deadline date (optional)" />
+          <input type="time" id="task-due-time" title="Deadline time (optional)" aria-label="Deadline time (optional)" />
           <select id="task-priority" title="Priority">
             <option value="High">High</option>
             <option value="Medium" selected>Medium</option>
             <option value="Low">Low</option>
           </select>
         </div>
+        <p id="task-form-error" class="modal-error hidden" role="alert"></p>
         <button type="submit">Add Task</button>
       </form>
 
@@ -116,6 +135,32 @@
     </div>
   </div>
 
+  <div id="edit-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+    <div class="modal card">
+      <div class="form-header">
+        <h3 class="form-title" id="edit-modal-title">Edit task</h3>
+        <p class="form-hint">Update the details of your task.</p>
+      </div>
+      <input type="text" id="edit-title" placeholder="Task title" maxlength="200" />
+      <textarea id="edit-description" rows="2" placeholder="Description (optional)" aria-label="Task description"></textarea>
+      <div class="form-row">
+        <input type="date" id="edit-due-date" title="Deadline date" aria-label="Deadline date" />
+        <input type="time" id="edit-due-time" title="Deadline time" aria-label="Deadline time" />
+        <select id="edit-priority" title="Priority" aria-label="Priority">
+          <option value="High">High</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="Low">Low</option>
+        </select>
+      </div>
+      <p id="edit-error" class="modal-error hidden" role="alert"></p>
+      <div class="modal-actions">
+        <button type="button" id="edit-cancel" class="btn-secondary">Cancel</button>
+        <button type="button" id="edit-save" class="btn-primary">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/core.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

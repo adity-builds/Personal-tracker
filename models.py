@@ -11,6 +11,7 @@ class TaskModel(Base):
     completed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+    due_date = Column(DateTime, nullable=True)
     priority = Column(String, default="Medium")
 
 class HistoryModel(Base):
