@@ -1,11 +1,11 @@
 # Personal Tracker — Daily Task Tracker
-![Version](https://img.shields.io/badge/version-0.3.0-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.3.1-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![License](https://img.shields.io/badge/license-MIT-green)
 
 Modern card-based desktop app for daily tasks — **FastAPI + SQLite + pywebview**. Ships as a windowed `PersonalTracker.exe` (no console) with a proper installer, task editing with deadlines, an insights dashboard, Dark/Light theme, and append-only history with timestamps.
 
-> **Latest release: v0.3.0** (2026-08-23) — See [CHANGELOG.md](CHANGELOG.md) for details. Previous tag: `v0.2.0`.
+> **Latest release: v0.3.1** (2026-08-23) — See [CHANGELOG.md](CHANGELOG.md) for details. Previous tag: `v0.3.0`.
 
-## ✨ Features (v0.3.0)
+## ✨ Features (v0.3.1)
 - **Task editing + deadlines** — Edit modal (title/description/priority), calendar + clock deadline pickers, past-deadline blocking, red `Overdue` / amber `Due today` badges
 - **Insights dashboard** — Current streak 🔥, all-time total, 7-day trend chart (inline SVG), best day — computed from the immutable history (`main.py`, `static/app.js`)
 - **Proper installer** — `PersonalTrackerSetup-v…exe` with Start Menu shortcut and real uninstaller; portable exe also published (`installer/personal_tracker.iss`)

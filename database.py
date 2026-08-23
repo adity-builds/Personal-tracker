@@ -13,32 +13,66 @@ def _get_db_path() -> str:
 
     Priority: PT_DB_PATH env var (tests / custom installs) > frozen exe dir
     (portable) > AppData fallback > project dir in dev.
+
+    The installed exe lives in Program Files (not writable for normal users),
+    so we must not try to create tasks.db there — it would fail with
+    'unable to open database file' (sqlite3.OperationalError).
     """
     env_path = os.environ.get("PT_DB_PATH")
     if env_path:
-        path = os.path.abspath(env_path)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        return path
+        path = Path(env_path).expanduser().resolve()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return str(path)
 
     if getattr(sys, "frozen", False):
-        # Running as PyInstaller exe
-        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-        candidate = os.path.join(exe_dir, "tasks.db")
+        exe_dir = Path(sys.executable).resolve().parent
+        # Only use the exe dir for portable installs (writable locations).
+        # Program Files is never writable for a standard user, so fall back to
+        # %APPDATA%\PersonalTracker there — os.access is unreliable on Windows
+        # with UAC, so we use a path heuristic + actual write test.
         try:
-            if os.path.exists(exe_dir) and os.access(exe_dir, os.W_OK):
-                return candidate
+            exe_str = str(exe_dir).lower()
+            is_program_files = "program files" in exe_str
+            if not is_program_files and exe_dir.exists():
+                try:
+                    probe = exe_dir / ".writetest.tmp"
+                    probe.touch(exist_ok=True)
+                    probe.unlink(missing_ok=True)
+                    candidate = exe_dir / "tasks.db"
+                    candidate.parent.mkdir(parents=True, exist_ok=True)
+                    return str(candidate)
+                except Exception:
+                    pass
         except Exception:
             pass
-        appdata = os.environ.get("APPDATA") or os.path.expanduser("~")
-        data_dir = os.path.join(appdata, "PersonalTracker")
-        os.makedirs(data_dir, exist_ok=True)
-        return os.path.join(data_dir, "tasks.db")
-    else:
-        return str(BASE_DIR / "tasks.db")
+        appdata = os.environ.get("APPDATA") or str(Path.home())
+        data_dir = Path(appdata) / "PersonalTracker"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        # One-time migration: if an old DB was created in Program Files
+        # during an elevated first run, move it to AppData so the user
+        # doesn't lose data and doesn't keep hitting the permission error.
+        try:
+            old_candidate = exe_dir / "tasks.db"
+            new_candidate = data_dir / "tasks.db"
+            if old_candidate.exists() and not new_candidate.exists():
+                import shutil
+
+                shutil.copy2(str(old_candidate), str(new_candidate))
+        except Exception:
+            pass
+        return str(data_dir / "tasks.db")
+
+    path = BASE_DIR / "tasks.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return str(path)
 
 
 DB_PATH = _get_db_path()
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
+# Ensure parent exists before SQLAlchemy tries to open the file
+Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+# Use forward slashes for the URL — backslashes + spaces in
+# 'C:\Program Files\...' break the sqlite URL on Windows
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{Path(DB_PATH).as_posix()}"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
@@ -53,7 +87,7 @@ def _alembic_config():
 
     cfg = Config()
     cfg.set_main_option("script_location", str(BASE_DIR / "alembic"))
-    cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+    cfg.set_main_option("sqlalchemy.url", f"sqlite:///{Path(DB_PATH).as_posix()}")
     return cfg
 
 

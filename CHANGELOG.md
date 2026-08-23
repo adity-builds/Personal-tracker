@@ -3,6 +3,14 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
+## [0.3.1] - 2026-08-23
+
+### Fixed
+- **Installer shows "unable to open database file" on launch** (`database.py:11`, `database.py:41`)
+  - Installed exe in `C:\Program Files\...` is not writable — SQLite failed with `sqlite3.OperationalError` because the DB URL used backslashes/spaces and `os.access` is unreliable with UAC
+  - Now detects `Program Files` installs via path heuristic + actual write probe, always falls back to `%APPDATA%\PersonalTracker\tasks.db` with forward-slash URL (`Path.as_posix()`) and ensures parent dir exists; one-time auto-migration copies an existing `Program Files\tasks.db` (from an elevated first run) to AppData
+  - Validated with simulated Program Files install (mocked `sys.frozen` + `APPDATA`) and live exe launch test (`main.py:314`)
+
 ## [0.3.0] - 2026-08-23
 
 ### Added
