@@ -1,5 +1,5 @@
 # Personal Tracker — Daily Task Tracker
-![Version](https://img.shields.io/badge/version-0.3.0-blue) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.3.0-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![License](https://img.shields.io/badge/license-MIT-green)
 
 Modern card-based desktop app for daily tasks — **FastAPI + SQLite + pywebview**. Ships as a windowed `PersonalTracker.exe` (no console) with a proper installer, task editing with deadlines, an insights dashboard, Dark/Light theme, and append-only history with timestamps.
 
