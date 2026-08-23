@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Personal Tracker v0.3.1 - PyInstaller spec for windowed release
+# Personal Tracker v0.3.2 - PyInstaller spec for windowed release
 # Build with: pyinstaller PersonalTracker.spec  (--noconfirm)
 # Console is DISABLED for windowed exe (no black console on launch)
 

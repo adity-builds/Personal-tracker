@@ -1,5 +1,5 @@
 """
-Personal Tracker v0.3.1
+Personal Tracker v0.3.2
 Daily Task Tracker - Standalone Desktop App (FastAPI + pywebview)
 """
 from datetime import datetime, timedelta
@@ -42,7 +42,7 @@ import schemas
 try:
     from version import __version__
 except ImportError:
-    __version__ = "0.3.1"
+    __version__ = "0.3.2"
 
 HOST = "127.0.0.1"
 PORT = 8000

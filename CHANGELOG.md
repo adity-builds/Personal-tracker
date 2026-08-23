@@ -3,6 +3,13 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
+## [0.3.2] - 2026-08-23
+
+### Fixed
+- **Installer still shows "unable to open database file" on some machines — 8.3 short-name edge case** (`database.py:21`)
+  - `Path.resolve()` on some systems returns `C:\PROGRA~1\...` which the old `"program files" in path` check missed; now also checks `PROGRA~` and the actual `ProgramFiles` env vars via `is_relative_to()`
+  - Verified with mocked `PROGRA~1` install path falling back to `%APPDATA%\PersonalTracker`
+
 ## [0.3.1] - 2026-08-23
 
 ### Fixed

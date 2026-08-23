@@ -26,14 +26,30 @@ def _get_db_path() -> str:
 
     if getattr(sys, "frozen", False):
         exe_dir = Path(sys.executable).resolve().parent
+
+        def _is_under_program_files(p: Path) -> bool:
+            try:
+                for env in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"):
+                    pf = os.environ.get(env)
+                    if pf:
+                        try:
+                            if p.is_relative_to(Path(pf).resolve()):
+                                return True
+                        except Exception:
+                            pass
+                s = str(p).lower()
+                if "program files" in s or "progra~" in s:
+                    return True
+            except Exception:
+                pass
+            return False
+
         # Only use the exe dir for portable installs (writable locations).
         # Program Files is never writable for a standard user, so fall back to
         # %APPDATA%\PersonalTracker there — os.access is unreliable on Windows
         # with UAC, so we use a path heuristic + actual write test.
         try:
-            exe_str = str(exe_dir).lower()
-            is_program_files = "program files" in exe_str
-            if not is_program_files and exe_dir.exists():
+            if not _is_under_program_files(exe_dir) and exe_dir.exists():
                 try:
                     probe = exe_dir / ".writetest.tmp"
                     probe.touch(exist_ok=True)

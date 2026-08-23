@@ -1,11 +1,11 @@
 # Personal Tracker — Daily Task Tracker
-![Version](https://img.shields.io/badge/version-0.3.1-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.3.2-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![License](https://img.shields.io/badge/license-MIT-green)
 
 Modern card-based desktop app for daily tasks — **FastAPI + SQLite + pywebview**. Ships as a windowed `PersonalTracker.exe` (no console) with a proper installer, task editing with deadlines, an insights dashboard, Dark/Light theme, and append-only history with timestamps.
 
-> **Latest release: v0.3.1** (2026-08-23) — See [CHANGELOG.md](CHANGELOG.md) for details. Previous tag: `v0.3.0`.
+> **Latest release: v0.3.2** (2026-08-23) — See [CHANGELOG.md](CHANGELOG.md) for details. Previous tag: `v0.3.1`.
 
-## ✨ Features (v0.3.1)
+## ✨ Features (v0.3.2)
 - **Task editing + deadlines** — Edit modal (title/description/priority), calendar + clock deadline pickers, past-deadline blocking, red `Overdue` / amber `Due today` badges
 - **Insights dashboard** — Current streak 🔥, all-time total, 7-day trend chart (inline SVG), best day — computed from the immutable history (`main.py`, `static/app.js`)
 - **Proper installer** — `PersonalTrackerSetup-v…exe` with Start Menu shortcut and real uninstaller; portable exe also published (`installer/personal_tracker.iss`)
@@ -81,8 +81,8 @@ pyinstaller PersonalTracker.spec --noconfirm --clean
 # DB is created next to exe on first run, or %APPDATA%\PersonalTracker\tasks.db if exe dir is read-only
 
 # Installer (needs Inno Setup 6 - ISCC.exe):
-iscc installer/personal_tracker.iss /DAppVersion=0.3.0
-# Output: dist/PersonalTrackerSetup-v0.3.0.exe
+iscc installer/personal_tracker.iss /DAppVersion=0.3.2
+# Output: dist/PersonalTrackerSetup-v0.3.2.exe
 ```
 
 > **Console hidden:** `PersonalTracker.spec` `console=False` + `main.py:1` `ctypes ShowWindow(SW_HIDE)` + `sys.stdout` null-guard + `uvicorn` `log_level="critical"` + `webview.start(debug=False)`.
@@ -96,7 +96,7 @@ iscc installer/personal_tracker.iss /DAppVersion=0.3.0
 | `DELETE` | `/tasks/{task_id}` | — | `{ok: true}` |
 | `GET`  | `/history/` | — | `List[DailyCount{date, count, tasks:[{title, description, priority, created_at, completed_at}]}>` |
 | `GET`  | `/stats/` | — | `{total_completions, current_streak, best_day, best_day_count, last_7_days[7], by_priority}` |
-| `GET`  | `/version` | — | `{version: "0.3.0"}` |
+| `GET`  | `/version` | — | `{version: "0.3.2"}` |
 | `GET`  | `/` | — | `static/index.html` |
 | `GET`  | `/docs` | — | Swagger UI |
 
@@ -108,7 +108,7 @@ Completed tasks are **permanent** — they cannot be unchecked (`409`). All hist
 - **Version:** `version.py` / `VERSION` — bump both, update `file_version_info.txt` (`filevers=(0,3,0,0)`) before `pyinstaller`.
 
 ## 📝 Changelog
-See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.3.0:
+See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.3.2:
 - Task editing with calendar/clock deadline pickers and overdue badges
 - Insights dashboard (streak, 7-day trend, best day) from immutable history
 - Proper Windows installer (Start Menu + uninstaller) alongside the portable exe
