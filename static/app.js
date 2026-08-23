@@ -303,7 +303,12 @@ function renderTasks(tasks) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = task.completed;
-    checkbox.setAttribute("aria-label", task.completed ? "Mark as pending" : "Mark as completed");
+    if (task.completed) {
+      // Completed tasks are permanent - prevent unchecking (server rejects with 409 too)
+      checkbox.disabled = true;
+      checkbox.title = "Completed tasks can't be unchecked";
+    }
+    checkbox.setAttribute("aria-label", task.completed ? "Completed (cannot be unchecked)" : "Mark as completed");
     checkbox.addEventListener("change", async () => {
       try {
         await updateTaskStatus(task.id, checkbox.checked);

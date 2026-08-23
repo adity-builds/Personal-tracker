@@ -71,14 +71,14 @@ pyinstaller PersonalTracker.spec --noconfirm --clean
 |--------|------|------|---------|
 | `POST` | `/tasks/` | `{title, description?, priority?}` | `Task{id, title, description, priority, completed, created_at, completed_at}` |
 | `GET`  | `/tasks/?skip=&limit=` | — | `List[Task]` |
-| `PUT`  | `/tasks/{task_id}` | `{completed, priority?}` | `Task` (also appends to history if completing) |
+| `PUT`  | `/tasks/{task_id}` | `{completed, priority?}` | `Task` (also appends to history if completing; `409` when trying to uncheck a completed task) |
 | `DELETE` | `/tasks/{task_id}` | — | `{ok: true}` |
 | `GET`  | `/history/` | — | `List[DailyCount{date, count, tasks:[{title, description, priority, created_at, completed_at}]}>` |
 | `GET`  | `/version` | — | `{version: "0.2.0"}` |
 | `GET`  | `/` | — | `static/index.html` |
 | `GET`  | `/docs` | — | Swagger UI |
 
-All history entries are **immutable** — unchecking a task does **not** delete history.
+Completed tasks are **permanent** — they cannot be unchecked (`409`). All history entries are **immutable** — every completion records exactly one entry, so toggling can never duplicate history rows.
 
 ## 🔧 Configuration
 - **Host/Port:** `HOST=127.0.0.1`, `PORT=8000` in `main.py:21`

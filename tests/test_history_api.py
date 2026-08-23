@@ -40,30 +40,34 @@ def test_today_group_matches_local_date(client, make_task):
     assert history[0]["date"] == expected_day
 
 
-def test_uncheck_preserves_history(client, make_task):
-    """Append-only guarantee: unchecking must NOT remove history entries."""
+def test_uncheck_rejected_preserves_history(client, make_task):
+    """Completed tasks cannot be unchecked; the history entry survives."""
     task = make_task("audit me")
     client.put(f"/tasks/{task['id']}", json={"completed": True})
 
-    client.put(f"/tasks/{task['id']}", json={"completed": False})
+    resp = client.put(f"/tasks/{task['id']}", json={"completed": False})
+    assert resp.status_code == 409
 
-    # Task itself back to pending...
+    # Task itself stays completed...
     tasks = {t["id"]: t for t in client.get("/tasks/").json()}
-    assert tasks[task["id"]]["completed"] is False
-    # ...but history entry survives.
+    assert tasks[task["id"]]["completed"] is True
+    # ...and history entry survives.
     history = _history(client)
     assert history[0]["count"] == 1
 
 
-def test_recompleting_appends_new_immutable_entry(client, make_task):
+def test_rechecking_does_not_duplicate_history(client, make_task):
+    """Repeated completion calls never create duplicate history entries."""
     task = make_task("twice done")
     client.put(f"/tasks/{task['id']}", json={"completed": True})
-    client.put(f"/tasks/{task['id']}", json={"completed": False})
     client.put(f"/tasks/{task['id']}", json={"completed": True})
+
+    rejected = client.put(f"/tasks/{task['id']}", json={"completed": False})
+    assert rejected.status_code == 409
 
     history = _history(client)
     assert len(history) == 1  # still one day group
-    assert history[0]["count"] == 2  # two immutable entries for that day
+    assert history[0]["count"] == 1  # single entry, no duplicates
 
 
 def test_deleting_task_preserves_history(client, make_task):

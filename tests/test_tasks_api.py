@@ -51,13 +51,27 @@ def test_complete_task_sets_completed_at(client, make_task):
     assert body["completed_at"] is not None
 
 
-def test_uncheck_clears_completed_at(client, make_task):
-    task = make_task("toggle me")
+def test_uncheck_completed_task_is_rejected(client, make_task):
+    """Completed tasks are permanent: unchecking returns 409 and keeps state."""
+    task = make_task("no undo")
     client.put(f"/tasks/{task['id']}", json={"completed": True})
+
     resp = client.put(f"/tasks/{task['id']}", json={"completed": False})
-    body = resp.json()
-    assert body["completed"] is False
-    assert body["completed_at"] is None
+
+    assert resp.status_code == 409
+    tasks = {t["id"]: t for t in client.get("/tasks/").json()}
+    assert tasks[task["id"]]["completed"] is True
+    assert tasks[task["id"]]["completed_at"] is not None
+
+
+def test_recomplete_completed_task_is_noop(client, make_task):
+    """PUT completed=True on an already-completed task leaves it untouched."""
+    task = make_task("already done")
+    first = client.put(f"/tasks/{task['id']}", json={"completed": True}).json()
+    second = client.put(f"/tasks/{task['id']}", json={"completed": True}).json()
+
+    assert second["completed"] is True
+    assert second["completed_at"] == first["completed_at"]
 
 
 def test_update_priority_only(client, make_task):

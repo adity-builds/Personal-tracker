@@ -3,6 +3,17 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- **Completed tasks can no longer be unchecked** (`main.py:116`, `static/app.js:305`)
+  - `PUT /tasks/{task_id}` now rejects `completed: true → false` with `409 Completed tasks cannot be unchecked`, so toggling a task can never flood the History sidebar with duplicate entries
+  - Frontend disables the checkbox for completed tasks (`cursor: not-allowed` + tooltip) so the state can't be changed by accident
+
+### Changed
+- History is still append-only, but each completion now records exactly one entry per task (re-checking an already-completed task is a no-op)
+- Updated API tests for the new no-uncheck behavior (`tests/test_tasks_api.py`, `tests/test_history_api.py`)
+
 ## [0.2.0] - 2026-08-21
 
 ### Added

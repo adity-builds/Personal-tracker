@@ -831,6 +831,10 @@ body::before {
   transform: scale(0.95);
 }
 
+.task-item input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
 .task-content {
   flex: 1;
   min-width: 0;

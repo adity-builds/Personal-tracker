@@ -115,23 +115,31 @@ def update_task_status(task_id: int, task_update: schemas.TaskUpdate, db: Sessio
 
     was_completed = db_task.completed
 
+    # Completed tasks are permanent: unchecking would spam the audit trail
+    if was_completed and not task_update.completed:
+        raise HTTPException(status_code=409, detail="Completed tasks cannot be unchecked")
+
     db_task.completed = task_update.completed
-    db_task.completed_at = datetime.now() if task_update.completed else None
+    if task_update.completed:
+        # Stamp/append only on the pending -> completed transition;
+        # re-checking an already-completed task is a no-op
+        if not was_completed:
+            db_task.completed_at = datetime.now()
+            # Append-only history: every completion creates a new immutable record
+            history_entry = models.HistoryModel(
+                task_id=task_id,
+                title=db_task.title,
+                description=db_task.description,
+                priority=db_task.priority,
+                created_at=db_task.created_at or datetime.now(),
+                completed_at=db_task.completed_at,
+            )
+            db.add(history_entry)
+    else:
+        db_task.completed_at = None
+
     if task_update.priority is not None:
         db_task.priority = task_update.priority
-
-    # Append-only history: every completion creates a new immutable record
-    if task_update.completed and not was_completed:
-        history_entry = models.HistoryModel(
-            task_id=task_id,
-            title=db_task.title,
-            description=db_task.description,
-            priority=db_task.priority,
-            created_at=db_task.created_at or datetime.now(),
-            completed_at=db_task.completed_at,
-        )
-        db.add(history_entry)
-    # Intentionally do NOT delete history when unchecking - history is audit trail
 
     db.commit()
     db.refresh(db_task)
