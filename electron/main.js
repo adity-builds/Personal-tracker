@@ -71,7 +71,7 @@ async function startPythonBackend() {
   try {
     pyProcess = spawn(pyCmd, ['-u', 'main.py'], {
       cwd: backendDir,
-      env: { ...process.env, PYTHONUNBUFFERED: '1' },
+      env: { ...process.env, PYTHONUNBUFFERED: '1', PYWEBVIEW_DISABLED: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: process.platform === 'win32',
       windowsHide: true,

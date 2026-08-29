@@ -3,6 +3,18 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
+## [0.4.3] - 2026-08-29
+
+### Added
+- **Standalone window restored** (`main.py:1`): frameless `pywebview` `Api` (`minimize`/`toggle_maximize`/`close`) + `threading` + `wait_for_server`, loads `http://127.0.0.1:8000/` (`dist-react/index.html`). `PYWEBVIEW_DISABLED=1` for Electron spawn `electron/main.js:74`, `requirements.txt:6` `pywebview==6.2.1` + `pythonnet`/`clr_loader`, `PersonalTracker.spec:32` `webview` hiddenimports
+
+### Changed
+- `src/components/TitleBar.jsx:4` shim `window.electronAPI` ↔ `window.pywebview.api` for `minimize`/`toggleMaximize`/`close`, so `21 MB` Inno installer is windowed again (no browser needed, like v0.3.2)
+- `README.md:4` `pywebview + React`, `ROADMAP.md:40` Phase 8
+
+### Fixed
+- N/A — window was missing in `v0.4.2` Inno `21 MB` (API-only `main.py:290` headless)
+
 ## [0.4.2] - 2026-08-29
 
 ### Fixed

@@ -1,11 +1,16 @@
 import { Minus, Square, X, Sparkles } from 'lucide-react'
 
 export default function TitleBar({ version }) {
-  const isElectron = typeof window !== 'undefined' && window.electronAPI
+  const isWindowed = typeof window !== 'undefined' && (window.electronAPI || (window.pywebview && window.pywebview.api))
+  const api = typeof window !== 'undefined' ? (window.electronAPI || (window.pywebview ? {
+    minimize: () => window.pywebview.api.minimize(),
+    toggleMaximize: () => window.pywebview.api.toggle_maximize(),
+    close: () => window.pywebview.api.close(),
+  } : null)) : null
 
-  const handleMin = () => window.electronAPI?.minimize()
-  const handleMax = () => window.electronAPI?.toggleMaximize()
-  const handleClose = () => window.electronAPI?.close()
+  const handleMin = () => api?.minimize()
+  const handleMax = () => api?.toggleMaximize()
+  const handleClose = () => api?.close()
 
   return (
     <div className="h-9 flex items-center justify-between glass-strong sticky top-0 z-50 border-b border-white/10 titlebar-drag select-none">
@@ -22,12 +27,12 @@ export default function TitleBar({ version }) {
       </div>
 
       <div className="flex items-center gap-1 pr-1 titlebar-no-drag">
-        {!isElectron && (
+        {!isWindowed && (
           <div className="text-xs text-muted-foreground pr-3 hidden md:block">
             Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">K</kbd> to search
           </div>
         )}
-        {isElectron && (
+        {isWindowed && (
           <>
             <button onClick={handleMin} className="w-9 h-7 grid place-items-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
               <Minus className="w-4 h-4 opacity-70" />

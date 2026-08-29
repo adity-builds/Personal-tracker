@@ -1,6 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Personal Tracker v0.4.2 - PyInstaller spec for backend API
-# UI is now Electron + React (npm run build). This spec builds the Python API only.
+# Personal Tracker v0.4.3 - PyInstaller spec for windowed standalone (pywebview + React)
 # Build with: pyinstaller PersonalTracker.spec  (--noconfirm)
 # Console is DISABLED for windowed exe (no black console on launch)
 
@@ -30,6 +29,10 @@ a = Analysis(
         ('alembic', 'alembic'),  # migration scripts - runtime upgrade needs them
     ] + _dist_datas,
     hiddenimports=[
+        'webview.platforms.winforms',
+        'webview.platforms.edgechromium',
+        'clr_loader',
+        'pythonnet',
         'alembic',
         'uvicorn.logging',
         'uvicorn.loops',

@@ -1,7 +1,7 @@
 # Roadmap
 
 Staged plan for Personal Tracker. Done items graduate into [CHANGELOG.md](CHANGELOG.md).
-Current release: **v0.4.2** — see [README.md](README.md).
+Current release: **v0.4.3** — see [README.md](README.md).
 
 ---
 
@@ -45,6 +45,10 @@ Current release: **v0.4.2** — see [README.md](README.md).
 ### Phase 7 — Release Hotfix (v0.4.2) ✅
 - [x] Fix `npm ci` lock out-of-sync: regenerate `package-lock.json` (npm 11, 463 packages), `setup-node 20→22`, fallback `npm ci || npm install` (`.github/workflows/release.yml:27`)
 - [x] Python 3.11 compat: `main.py:15` revert `list[Task]` → `List[Task]`, `PersonalTracker.spec:49` `optimize 2→0`
+
+### Phase 8 — Standalone Window Restore (v0.4.3) ✅
+- [x] Bring back `pywebview` window: `main.py:1` frameless `Api` + `threading` + `wait_for_server`, `requirements.txt:6` `pywebview==6.2.1`, `PersonalTracker.spec:32` `webview` hiddenimports, `PYWEBVIEW_DISABLED=1` for Electron spawn `electron/main.js:74`
+- [x] `TitleBar.jsx:4` shim `window.electronAPI` ↔ `window.pywebview.api` (`minimize`/`toggle_maximize`/`close`), `src/index.css:22` white glyphs already in v0.4.1, `21 MB` Inno now windowed again (no browser needed)
 
 ---
 
@@ -110,4 +114,5 @@ Current release: **v0.4.2** — see [README.md](README.md).
 | History is append-only and immutable | Reliable audit trail; powers future stats |
 | Desktop-first local app, installer-grade packaging | Single-user product; no auth/sync complexity yet |
 | No recurring tasks until after v0.3 | Core editing/stats first |
+
 

@@ -1,12 +1,26 @@
 """
-Personal Tracker v0.4.2
-Daily Task Tracker - FastAPI backend for Electron + React UI
+Personal Tracker v0.4.3
+Daily Task Tracker - Standalone Desktop App (FastAPI + pywebview + React)
 """
 from datetime import datetime, timedelta
 import os
 import sys
+import threading
+import time
+import urllib.request
 
-# In windowed mode (Electron child) stdout/stderr may be None
+# --- Windowed exe: hide console immediately (like v0.3.2) ---
+try:
+    import ctypes
+
+    whnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if whnd != 0:
+        ctypes.windll.user32.ShowWindow(whnd, 0)
+        ctypes.windll.kernel32.CloseHandle(whnd)
+except Exception:
+    pass
+
+# In windowed mode (console=False) stdout/stderr are None -> prevent crashes
 if sys.stdout is None:
     sys.stdout = open(os.devnull, "w")
 if sys.stderr is None:
@@ -299,8 +313,35 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+class Api:
+    """JS bridge for pywebview window controls (frameless)."""
+
+    def __init__(self) -> None:
+        self._window = None
+        self._is_maximized = False
+
+    def minimize(self) -> None:
+        if self._window:
+            self._window.minimize()
+
+    def toggle_maximize(self) -> bool:
+        if not self._window:
+            return False
+        if self._is_maximized:
+            self._window.restore()
+            self._is_maximized = False
+        else:
+            self._window.maximize()
+            self._is_maximized = True
+        return self._is_maximized
+
+    def close(self) -> None:
+        if self._window:
+            self._window.destroy()
+
+
 def run_server() -> None:
-    """Run the API server (used by Electron child process or standalone)."""
+    """Run the API server (standalone or Electron child)."""
     import uvicorn
 
     config = uvicorn.Config(
@@ -316,7 +357,96 @@ def run_server() -> None:
     server.run()
 
 
+def wait_for_server(timeout: float = 15.0) -> bool:
+    url = f"http://{HOST}:{PORT}/version"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=1)
+            return True
+        except Exception:
+            time.sleep(0.2)
+    return False
+
+
 if __name__ == "__main__":
     import multiprocessing
+
     multiprocessing.freeze_support()
-    run_server()
+
+    # If spawned by Electron (PYWEBVIEW_DISABLED=1) -> just run API, no window
+    if os.environ.get("PYWEBVIEW_DISABLED") == "1" or "--api-only" in sys.argv:
+        run_server()
+    else:
+        # Extra hide for cases where console was created before ctypes call
+        try:
+            import ctypes
+
+            ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+        except Exception:
+            pass
+
+        threading.Thread(target=run_server, daemon=True).start()
+
+        if not wait_for_server():
+            raise RuntimeError(f"Server failed to start on {HOST}:{PORT}")
+
+        try:
+            import webview
+        except ImportError:
+            # Fallback: no window, just keep server running (browser mode)
+            print("pywebview not installed, running at http://127.0.0.1:8000/")
+            print("Open http://127.0.0.1:8000/ in your browser")
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                sys.exit(0)
+
+        api = Api()
+        window = webview.create_window(
+            "Personal Tracker",
+            f"http://{HOST}:{PORT}/",
+            width=1280,
+            height=820,
+            min_size=(980, 640),
+            frameless=True,
+            easy_drag=False,
+            js_api=api,
+        )
+        api._window = window
+        # Shim: make React's window.electronAPI also work on pywebview
+        # (TitleBar checks window.electronAPI, pywebview exposes window.pywebview.api)
+        def _shim_electron_api():
+            try:
+                window.evaluate_js(
+                    """
+                    if (!window.electronAPI && window.pywebview && window.pywebview.api) {
+                        window.electronAPI = {
+                            minimize: () => window.pywebview.api.minimize(),
+                            toggleMaximize: () => window.pywebview.api.toggle_maximize(),
+                            close: () => window.pywebview.api.close(),
+                            isElectron: false
+                        };
+                    }
+                    """
+                )
+            except Exception:
+                pass
+
+        # Use webview start with shim after window loads
+        try:
+            # webview.start blocks until window closed
+            # Inject shim via 'loaded' event if available
+            try:
+                window.events.loaded += lambda: _shim_electron_api()
+            except Exception:
+                pass
+            webview.start(debug=False)
+        except Exception as e:
+            print(f"Window failed: {e}, fallback to http://127.0.0.1:8000/")
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                sys.exit(0)
