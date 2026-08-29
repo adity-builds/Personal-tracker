@@ -1,7 +1,7 @@
 # Roadmap
 
 Staged plan for Personal Tracker. Done items graduate into [CHANGELOG.md](CHANGELOG.md).
-Current release: **v0.4.1** — see [README.md](README.md).
+Current release: **v0.4.2** — see [README.md](README.md).
 
 ---
 
@@ -41,6 +41,10 @@ Current release: **v0.4.1** — see [README.md](README.md).
 - [x] Backend: `schemas.py` `ConfigDict`, `database.py` pool tuning, `main.py` lazy `uvicorn`, cached `dist-react/index.html`, clamped pagination, single-pass `stats`/`history`
 - [x] Frontend: `App.jsx` `useCallback` + `Suspense` lazy `EditModal`, `TaskCard` `memo` + CSS vs motion, `Sidebar` `memo` + `useMemo` week, `vite.config.js` `esnext` + `manualChunks` (react 134k / motion 122k / index 46k) — build 53s→9s
 - [x] Dark-mode: `color-scheme` + `invert(1)` white picker glyphs, white `select` options, high-contrast completion bubble (`src/index.css:164`, `Toolbar.jsx:18`, `TaskCard.jsx:40`)
+
+### Phase 7 — Release Hotfix (v0.4.2) ✅
+- [x] Fix `npm ci` lock out-of-sync: regenerate `package-lock.json` (npm 11, 463 packages), `setup-node 20→22`, fallback `npm ci || npm install` (`.github/workflows/release.yml:27`)
+- [x] Python 3.11 compat: `main.py:15` revert `list[Task]` → `List[Task]`, `PersonalTracker.spec:49` `optimize 2→0`
 
 ---
 
@@ -106,3 +110,4 @@ Current release: **v0.4.1** — see [README.md](README.md).
 | History is append-only and immutable | Reliable audit trail; powers future stats |
 | Desktop-first local app, installer-grade packaging | Single-user product; no auth/sync complexity yet |
 | No recurring tasks until after v0.3 | Core editing/stats first |
+

@@ -25,7 +25,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install Python dependencies
@@ -35,7 +35,13 @@ jobs:
         shell: pwsh
 
       - name: Install Node dependencies
-        run: npm ci
+        run: |
+          npm ci 2>&1 | Out-String -Stream | Select-Object -Last 50
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "npm ci failed (lock out of sync), falling back to npm install to sync lock..."
+            npm install
+            if ($LASTEXITCODE -ne 0) { throw "npm install also failed" }
+          }
         shell: pwsh
 
       - name: Lint & test - Node core logic

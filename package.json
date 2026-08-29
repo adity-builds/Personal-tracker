@@ -1,7 +1,7 @@
 {
   "name": "personal-tracker",
-  "version": "0.4.1",
-  "description": "Personal Tracker — Glassmorphic Electron + React UI",
+  "version": "0.4.2",
+  "description": "Personal Tracker \u00e2\u20ac\u201d Glassmorphic Electron + React UI",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {

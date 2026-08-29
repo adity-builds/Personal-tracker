@@ -1,11 +1,11 @@
 # Personal Tracker — Daily Task Tracker
-![Version](https://img.shields.io/badge/version-0.4.1-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![React](https://img.shields.io/badge/React-18-61dafb) ![Electron](https://img.shields.io/badge/Electron-30-47848f) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.4.2-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![React](https://img.shields.io/badge/React-18-61dafb) ![Electron](https://img.shields.io/badge/Electron-30-47848f) ![License](https://img.shields.io/badge/license-MIT-green)
 
 Glassmorphic desktop app for daily tasks — **Electron + React + FastAPI + SQLite**. Ships as a frameless windowed `PersonalTracker.exe` (no console) with a proper installer, task editing with deadlines, insights dashboard, Dark/Light theme, and append-only history with timestamps.
 
-> **Latest release: v0.4.1** (2026-08-29) — Performance polish + dark-mode fixes: 70% faster Vite build, code-split bundles, memoized renders, and white calendar/clock/dropdown glyphs in dark mode. See [CHANGELOG.md](CHANGELOG.md). Previous: `v0.4.0`.
+> **Latest release: v0.4.2** (2026-08-29) — Hotfix: `npm ci` lock sync + `setup-node 22` + Python 3.11 compat (`List`). See [CHANGELOG.md](CHANGELOG.md). Previous: `v0.4.1`.
 
-## ✨ Features (v0.4.1)
+## ✨ Features (v0.4.2)
 
 - **Glassmorphic dashboard** — Translucent `glass` cards with `backdrop-blur-16`, mesh gradients, `Plus Jakarta Sans` + `Inter`, rounded `16px`, soft shadows (`src/index.css`, `src/App.jsx`)
 - **Electron + React** — Vite on `5173` (dev) / `dist-react` (prod), frameless `BrowserWindow` `electron/main.js:42` with `preload.cjs` `electron/preload.cjs:1` for window controls
@@ -19,7 +19,7 @@ Glassmorphic desktop app for daily tasks — **Electron + React + FastAPI + SQLi
 ```
 Personal Tracker/
 ├── main.py                 # FastAPI API (no pywebview) — serves dist-react / static fallback
-├── version.py / VERSION    # Single source of truth (0.4.1)
+├── version.py / VERSION    # Single source of truth (0.4.2)
 ├── database.py             # Engine + Alembic runner (PT_DB_PATH; frozen-exe paths)
 ├── models.py               # TaskModel (due_date), HistoryModel
 ├── schemas.py              # Pydantic schemas incl. StatsSummary
@@ -104,8 +104,8 @@ pyinstaller PersonalTracker.spec --noconfirm --clean
 # Output: dist/PersonalTracker.exe  (~26 MB, windowed, versioned via file_version_info.txt)
 
 # 3. Installer (needs Inno Setup 6)
-iscc installer/personal_tracker.iss /DAppVersion=0.4.1
-# Output: dist/PersonalTrackerSetup-v0.4.1.exe
+iscc installer/personal_tracker.iss /DAppVersion=0.4.2
+# Output: dist/PersonalTrackerSetup-v0.4.2.exe
 
 # 4. (Optional) Electron bundle
 npm run electron:build              # -> dist/*.exe via electron-builder
@@ -122,7 +122,7 @@ npm run electron:build              # -> dist/*.exe via electron-builder
 | `DELETE` | `/tasks/{task_id}` | — | `{ok: true}` |
 | `GET`  | `/history/` | — | `List[DailyCount{date, count, tasks:[{title, description, priority, created_at, completed_at}]}>` |
 | `GET`  | `/stats/` | — | `{total_completions, current_streak, best_day, best_day_count, last_7_days[7], by_priority}` |
-| `GET`  | `/version` | — | `{version: "0.4.1"}` |
+| `GET`  | `/version` | — | `{version: "0.4.2"}` |
 | `GET`  | `/` | — | `dist-react/index.html` (or API status when Electron loads file://) |
 | `GET`  | `/docs` | — | Swagger UI |
 
@@ -134,7 +134,7 @@ Completed tasks **permanent** (`409`). History **append-only** — every complet
 - **Version:** `version.py` / `VERSION` — bump both, update `file_version_info.txt` before `pyinstaller`
 
 ## 📝 Changelog
-See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.4.1:
+See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.4.2:
 - 70% faster build (53s→9s), code-split React/Motion, memoized TaskCard/Sidebar, optimized API (`GET /stats`/`history`)
 - Dark-mode: white calendar/clock glyphs, white dropdowns, high-contrast completion bubble
 - Highlights for v0.4.0: `static/` trashed → Electron + React + Vite + Tailwind, glassmorphic dashboard, frameless IPC window, API-only backend
@@ -144,9 +144,9 @@ See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.4.1:
 # 1. Bump version.py / VERSION / file_version_info.txt / README badge / CHANGELOG
 # 2. Commit
 git add -A
-git commit -m "Release v0.4.1"
+git commit -m "Release v0.4.2"
 # 3. Tag & push (triggers Release workflow: Node tests → Python tests → Vite → PyInstaller → Electron → Inno Setup)
-git tag v0.4.1
+git tag v0.4.2
 git push origin main --tags
 ```
 
@@ -158,4 +158,5 @@ MIT — see original repo.
 - **Port in use:** change `PORT` in `main.py:32` or kill `uvicorn`/`PersonalTracker.exe`
 - **DB not found after moving exe:** copy `tasks.db` next to exe or check `%APPDATA%\PersonalTracker\tasks.db`
 - **Electron white screen:** `npm run build` first — Electron prod loads `dist-react/index.html` (`electron/main.js:68`)
+
 

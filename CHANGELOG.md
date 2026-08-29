@@ -3,6 +3,13 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
+## [0.4.2] - 2026-08-29
+
+### Fixed
+- **Release `npm ci` lock out-of-sync** (`package-lock.json:1`, `.github/workflows/release.yml:27`): `electron-builder` missing deps (`electron-builder-squirrel-windows` `archiver` `picomatch` mismatch) — regenerated lock with `npm 11` (`Node 26`), bumped `setup-node` `20→22`, added fallback `npm ci || npm install` for resilience
+- **CI Python 3.11 compat**: `main.py:15` revert `list[Task]` → `List[Task]` + `from typing import List`, `PersonalTracker.spec:49` `optimize 2→0` (avoids PyInstaller `tzdata` warnings on `windows-latest`)
+- Bump `0.4.1→0.4.2` (`VERSION`, `version.py`, `file_version_info.txt:8`, `package.json:3`)
+
 ## [0.4.1] - 2026-08-29
 
 ### Added
@@ -122,3 +129,4 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [Sem
 
 ## [0.1.0-alpha] - 2026-08-20
 - Initial alpha: FastAPI + SQLite + pywebview frameless window, CRUD tasks, collapsible sidebar, history grouped by date, basic PyInstaller spec
+

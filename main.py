@@ -1,5 +1,5 @@
 """
-Personal Tracker v0.4.0
+Personal Tracker v0.4.2
 Daily Task Tracker - FastAPI backend for Electron + React UI
 """
 from datetime import datetime, timedelta
@@ -11,6 +11,8 @@ if sys.stdout is None:
     sys.stdout = open(os.devnull, "w")
 if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
+
+from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,7 +27,7 @@ import schemas
 try:
     from version import __version__
 except ImportError:
-    __version__ = "0.4.0"
+    __version__ = "0.4.2"
 
 HOST = "127.0.0.1"
 PORT = 8000
@@ -142,7 +144,7 @@ def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
     db.refresh(db_task)
     return db_task
 
-@app.get("/tasks/", response_model=list[schemas.Task])
+@app.get("/tasks/", response_model=List[schemas.Task])
 def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     # Clamp pagination to sane bounds (prevents full table scan)
     skip = max(0, skip)
@@ -201,7 +203,7 @@ def update_task_status(task_id: int, task_update: schemas.TaskUpdate, db: Sessio
     db.refresh(db_task)
     return db_task
 
-@app.get("/history/", response_model=list[schemas.DailyCount])
+@app.get("/history/", response_model=List[schemas.DailyCount])
 def read_history(db: Session = Depends(get_db)):
     rows = (
         db.query(models.HistoryModel)

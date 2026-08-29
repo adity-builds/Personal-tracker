@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Personal Tracker v0.4.0 - PyInstaller spec for backend API
+# Personal Tracker v0.4.2 - PyInstaller spec for backend API
 # UI is now Electron + React (npm run build). This spec builds the Python API only.
 # Build with: pyinstaller PersonalTracker.spec  (--noconfirm)
 # Console is DISABLED for windowed exe (no black console on launch)
@@ -44,9 +44,9 @@ a = Analysis(
     ],
     # PIL/Pillow is only a local-dev convenience (icon conversion); the app
     # never uses it at runtime. Excluding keeps local bundles identical to CI.
-    excludes=['PIL', 'PIL._imaging', 'PIL._imagingft', 'tkinter', 'matplotlib', 'numpy'],
+    excludes=['PIL', 'PIL._imaging', 'PIL._imagingft'],
     noarchive=False,
-    optimize=2,
+    optimize=0,
 )
 pyz = PYZ(a.pure)
 
