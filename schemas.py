@@ -1,8 +1,11 @@
 from datetime import date, datetime
 from typing import Dict, List, Optional
-from pydantic import BaseModel
+
+from pydantic import BaseModel, ConfigDict
 
 class TaskBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
+
     title: str
     description: Optional[str] = None
     due_date: Optional[datetime] = None
@@ -12,6 +15,8 @@ class TaskCreate(TaskBase):
     pass
 
 class TaskUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     completed: bool
     title: Optional[str] = None
     description: Optional[str] = None
@@ -24,10 +29,9 @@ class Task(TaskBase):
     created_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
 class HistoryEntry(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     task_id: Optional[int] = None
     title: str
@@ -35,9 +39,6 @@ class HistoryEntry(BaseModel):
     priority: str = "Medium"
     created_at: Optional[datetime] = None
     completed_at: datetime
-
-    class Config:
-        from_attributes = True
 
 class HistoryTaskDetail(BaseModel):
     title: str

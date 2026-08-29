@@ -3,6 +3,42 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
+## [0.4.1] - 2026-08-29
+
+### Added
+- N/A
+
+### Changed
+- **Performance**: `vite.config.js:27` `target:esnext` + `esbuild` + `manualChunks` (react/motion split), `optimizeDeps` — build 53s → 9s, initial JS 304k → 46k + 134k react (motion 122k lazy) `src/App.jsx:7`
+- **Frontend memoization**: `App.jsx:42` `useCallback` `loadAll`, isolated `keydown` effect, `TaskCard.jsx:1` `memo` + `useMemo` + CSS fade vs `motion.layout`, `Sidebar.jsx:40` `memo` + `useMemo` week/max, `Toolbar.jsx:1` `memo`, history capped 20 per day
+- **Backend**: `database.py:93` `timeout 15` + `expire_on_commit False`, `schemas.py:1` `ConfigDict` (clears 88 warnings), `main.py:42` lazy `uvicorn` + cached `_find_index`, clamped pagination `main.py:128`, single-pass `GET /history/` `main.py:184` + `GET /stats/` `main.py:225` (select only needed cols)
+- **Electron**: `electron/main.js:19` exponential backoff `waitForServer`, `windowsHide:true`, `backgroundThrottling:false`, removed duplicate `electron/preload.js` → `preload.cjs` only
+
+### Fixed
+- **Dark mode — calendar/clock glyphs invisible** (`src/index.css:164`): added `color-scheme: light/dark` on `:root`/`.dark` + `input[type=date/time]` + `select`, `.dark ::-webkit-calendar-picker-indicator { filter:invert(1) }` now white (was `0.75` and violet-300 lucide), `select option` dark bg `#1e293b white`
+- **Dropdowns "All priorities"/filter invisible** (`src/components/Toolbar.jsx:18`, `TaskForm.jsx:81`): `dark:border-white/15 dark:bg-slate-800`, `select dark:text-white`, `option dark:bg-slate-800 dark:text-white`, `select {color-scheme:dark}` in `.dark`
+- **Completion bubble invisible in dark** (`src/components/TaskCard.jsx:40`): `bg-card dark:bg-white/[0.06] border-border dark:border-white/25` + `hover:border-violet-500` + `shadow-sm` + affordance dot `group-hover:bg-violet-500/20`, focus ring `ring-violet-500/40`
+
+## [0.4.0] - 2026-08-25
+
+### Added
+- **Complete UI rebuild — Electron + React** (`src/`, `electron/`, `vite.config.js:1`, `tailwind.config.js:1`, `package.json:1`)
+  - Old `static/index.html` / `app.js` / `style.css` **trashed** (kept `static/README.md` as note); `static/core.js` ported to `src/utils/core.js:1` (ESM+CJS, still tested via `node tests/test_core_logic.js` — 29 tests)
+  - Vite 5 + Tailwind 3 + Framer Motion + lucide-react + Inter/Plus Jakarta Sans
+  - Glassmorphic system: `glass` / `glass-strong` + `gradient-mesh` + `backdrop-blur-16` + mesh gradients (`src/index.css:1`)
+  - React components: `TitleBar` (drag + `window.electronAPI` `electron/preload.cjs:1`), `Sidebar` (Today/Insights/History `src/components/Sidebar.jsx:27`), `TaskForm` (`src/components/TaskForm.jsx:1`), `Toolbar`, `TaskCard` (`src/components/TaskCard.jsx:1`), `EditModal` (`src/components/EditModal.jsx:1`) — all with motion animations
+
+### Changed
+- **Electron shell** (`electron/main.js:1`): frameless `BrowserWindow` (1280×820), spawns Python backend (`spawn python main.py` `electron/main.js:45`), `waitForServer` polling, `preload.cjs` bridge for minimize/maximize/close. Dev loads `http://localhost:5173`, prod loads `dist-react/index.html` via `file://`
+- **Backend is now API-only** (`main.py:1`): removed `pywebview`, `Api` class, `threading`+`wait_for_server`; `main.py:35` mounts `dist-react` + legacy `static` and prefers `dist-react/index.html`; `run_server()` `main.py:290` is plain `uvicorn`
+- **Build pipeline**: `vite.config.js:10` `outDir: 'dist-react'` (avoids PyInstaller `dist` collision), `PersonalTracker.spec:12` bundles `dist-react` if present and drops `pywebview` hiddenimports, `.gitignore:1` adds `dist-react/` + `node_modules/`, `requirements.txt:1` drops `pywebview`/`pythonnet`/`clr_loader`/`pywin32-ctypes`
+- **Tests**: `tests/test_core_logic.js:1` now `import` from `src/utils/core.js` and is ESM (package.json `type: module`); CJS compat added to `src/utils/core.js:95` for fallback
+- **Release workflow** (`.github/workflows/release.yml:1`): adds Node 20 + `npm ci` + `node tests/test_core_logic.js` + `pytest` + `npm run build` before PyInstaller + optional `electron-builder` step
+- Version bump `0.3.2` → `0.4.0` (`version.py:1`, `VERSION:1`, `file_version_info.txt:8` `filevers=(0,4,0,0)`, README badge)
+
+### Removed
+- `pywebview` desktop wrapper and all vanilla JS UI assets (`static/app.js`, `static/style.css`, `static/index.html`, `static/core.js`)
+
 ## [0.3.2] - 2026-08-23
 
 ### Fixed

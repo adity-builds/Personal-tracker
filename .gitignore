@@ -1,8 +1,19 @@
-# Build artifacts
+# Build artifacts (PyInstaller + Vite + Electron)
 build/
 dist/
+dist-react/
+out/
 *.manifest
 *.pyinstaller
+
+# Node / Electron / Vite
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.electron-builder.env
+
 
 # Python
 __pycache__/

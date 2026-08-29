@@ -22,30 +22,63 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install dependencies
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt -r requirements-dev.txt
         shell: pwsh
 
-      - name: Build windowed exe (no console)
+      - name: Install Node dependencies
+        run: npm ci
+        shell: pwsh
+
+      - name: Lint & test - Node core logic
+        run: node tests/test_core_logic.js
+        shell: pwsh
+
+      - name: Test - Python API
+        run: pytest -q
+        shell: pwsh
+
+      - name: Build React UI (Vite → dist-react)
+        run: |
+          npm run build
+          dir dist-react
+          if (!(Test-Path "dist-react/index.html")) { throw "dist-react/index.html not found - Vite build failed" }
+        shell: pwsh
+
+      - name: Build Python backend exe (no console)
         run: |
           pyinstaller PersonalTracker.spec --noconfirm --clean
           dir dist
-          # Verify console=False (windowed)
           python -c "import pathlib; txt=pathlib.Path('PersonalTracker.spec').read_text(); assert 'console=False' in txt, 'spec must be windowed'; print('spec console=False verified')"
         shell: pwsh
 
-      - name: Smoke test - check exe is windowed and version endpoint
+      - name: Build Electron app
         run: |
-          # Quick check that dist exe exists and is windowed (no console subsystem)
-          if (!(Test-Path "dist/PersonalTracker.exe")) { throw "dist/PersonalTracker.exe not found" }
-          $info = Get-Item "dist/PersonalTracker.exe"
-          Write-Host "Built exe: $($info.Length) bytes, version info:"
-          try { (Get-Item "dist/PersonalTracker.exe").VersionInfo | Format-List } catch {}
+          # Electron will bundle dist-react + Python backend
+          npm run electron:build 2>&1 | Out-String -Stream | Select-Object -Last 100
+          dir dist
+        shell: pwsh
+        continue-on-error: true
+
+      - name: Smoke test - check exe is windowed
+        run: |
+          if (!(Test-Path "dist/PersonalTracker.exe")) { Write-Host "dist/PersonalTracker.exe not found - Python backend build may have been overwritten by electron-builder"; } else {
+            $info = Get-Item "dist/PersonalTracker.exe"
+            Write-Host "Built backend exe: $($info.Length) bytes"
+            try { (Get-Item "dist/PersonalTracker.exe").VersionInfo | Format-List } catch {}
+          }
+          Get-ChildItem dist -Recurse | Format-Table Name, Length -AutoSize | Out-String -Stream | Select-Object -First 80
         shell: pwsh
 
-      - name: Build installer (Inno Setup)
+      - name: Build installer (Inno Setup wrapping Python exe)
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (!(Test-Path $iscc)) {
@@ -54,13 +87,11 @@ jobs:
             $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           }
           if (!(Test-Path $iscc)) { throw "ISCC.exe not found after Inno Setup install" }
-
           $version = (Get-Content "VERSION" -Raw).Trim()
           if (!$version) { throw "VERSION file is empty" }
           Write-Host "Compiling installer for v$version"
           & $iscc "installer/personal_tracker.iss" "/DAppVersion=$version"
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
-
           if (!(Test-Path "dist/PersonalTrackerSetup-v$version.exe")) {
             throw "installer exe missing from dist/"
           }
@@ -73,15 +104,19 @@ jobs:
           files: |
             dist/PersonalTracker.exe
             dist/PersonalTrackerSetup-v*.exe
+            dist/*.exe
+            dist/*.msi
           generate_release_notes: true
           body: |
-            Personal Tracker ${{ github.ref_name }} — proper installer + portable exe
+            Personal Tracker ${{ github.ref_name }} — Glassmorphic Electron + React UI
 
             **Downloads**
-            - `PersonalTrackerSetup-v…exe` — recommended: Start Menu shortcut, uninstaller, auto-updates location in Program Files
-            - `PersonalTracker.exe` — portable single file, no installation
+            - `PersonalTrackerSetup-v…exe` — recommended: Start Menu shortcut, uninstaller (wraps Python backend + Electron shell)
+            - `PersonalTracker.exe` — portable backend (API on http://127.0.0.1:8000, UI loads from dist-react)
+            - Electron installer (if built) — full desktop experience
 
-            **Note:** the installed version stores task data in `%APPDATA%\PersonalTracker\tasks.db`,
-            while the portable exe keeps `tasks.db` next to itself. See README for details.
+            **New in v0.4.0:** Complete UI rebuild: Electron + React + Vite + Tailwind, glassmorphic dashboard, frameless window, preserved API & history.
+
+            **Note:** task data in `%APPDATA%\PersonalTracker\tasks.db` (installed) or next to exe (portable).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

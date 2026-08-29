@@ -1,7 +1,46 @@
 # Roadmap
 
 Staged plan for Personal Tracker. Done items graduate into [CHANGELOG.md](CHANGELOG.md).
-Current release: **v0.3.0** — see [README.md](README.md).
+Current release: **v0.4.1** — see [README.md](README.md).
+
+---
+
+## v0.4 — Glassmorphic Electron + React Rebuild ✅
+
+### Phase 1 — Trash & Scaffold ✅
+- [x] `static/` vanilla UI trashed (`index.html`/`app.js`/`style.css`/`core.js` removed, `static/README.md` stub)
+- [x] Scaffold `package.json` (React 18 + Vite 5 + Electron 30 + Tailwind 3 + Framer Motion + lucide-react)
+- [x] `vite.config.js` `outDir: dist-react` to avoid PyInstaller `dist` collision
+- [x] Port `TrackerCore` to `src/utils/core.js` (ESM+CJS, 29 headless tests via `node tests/test_core_logic.js`)
+- [x] Remove `pywebview` from `requirements.txt` / `PersonalTracker.spec` (drop webview hiddenimports)
+
+### Phase 2 — Glassmorphic Design System ✅
+- [x] `src/index.css` — Tailwind + `glass`/`glass-strong` + `gradient-mesh` + dark/light CSS vars + custom scrollbars
+- [x] `tailwind.config.js` — brand fonts (Inter + Plus Jakarta Sans), glassmorphic tokens, animations
+
+### Phase 3 — React Components ✅
+- [x] `src/components/TitleBar.jsx` — frameless drag + version badge + `window.electronAPI`
+- [x] `src/components/Sidebar.jsx` — `TodayCard` (gradient) + `InsightsPanel` (streak/flame + animated 7-day bars) + `HistoryPanel` (grouped by date)
+- [x] `src/components/TaskForm.jsx` — glassmorphic add form with date/time/priority + `Core.combineDeadline` + grace validation
+- [x] `src/components/TaskCard.jsx` — glass card, `dueStatus` badges (Overdue/Due today), priority/status pills, motion layout
+- [x] `src/components/Toolbar.jsx` — search + priority/status filters
+- [x] `src/components/EditModal.jsx` — Framer Motion animated modal, `sameMinute` overdue-keep logic
+- [x] `src/App.jsx` — orchestrator: `fetchTasks`/`History`/`Stats`, `Core.compareTasks` sort, `Ctrl+K` focus, theme hook
+
+### Phase 4 — Electron Shell + API-only Backend ✅
+- [x] `electron/main.js` — frameless 1280×820, `waitForServer`, `spawn python main.py` fallback, `dist-react/index.html` file:// load
+- [x] `electron/preload.cjs` — `contextBridge` IPC for minimize/maximize/close
+- [x] `main.py` — stripped to API-only (no pywebview/Api/threading), mounts `dist-react` + `static`, `run_server()` plain uvicorn
+- [x] `src/utils/api.js` — `API_BASE=http://127.0.0.1:8000` fetch wrappers with `apiError` detail parsing
+
+### Phase 5 — Build & Release ✅
+- [x] `npm ci` + `node tests/test_core_logic.js` + `pytest -q` + `npm run build` + `pyinstaller` + `electron-builder` in `.github/workflows/release.yml`
+- [x] Bump `version.py` / `VERSION` / `file_version_info.txt` / README badge `0.4.0`
+
+### Phase 6 — Perf & Dark-Mode Polish (v0.4.1) ✅
+- [x] Backend: `schemas.py` `ConfigDict`, `database.py` pool tuning, `main.py` lazy `uvicorn`, cached `dist-react/index.html`, clamped pagination, single-pass `stats`/`history`
+- [x] Frontend: `App.jsx` `useCallback` + `Suspense` lazy `EditModal`, `TaskCard` `memo` + CSS vs motion, `Sidebar` `memo` + `useMemo` week, `vite.config.js` `esnext` + `manualChunks` (react 134k / motion 122k / index 46k) — build 53s→9s
+- [x] Dark-mode: `color-scheme` + `invert(1)` white picker glyphs, white `select` options, high-contrast completion bubble (`src/index.css:164`, `Toolbar.jsx:18`, `TaskCard.jsx:40`)
 
 ---
 
@@ -42,12 +81,12 @@ Current release: **v0.3.0** — see [README.md](README.md).
 
 ---
 
-## v0.4 — Data safety & portability
+## v0.5 — Data safety & portability
 - [ ] Export tasks + history to JSON / CSV
 - [ ] Import from JSON (merge or replace)
 - [ ] Automatic `tasks.db` backup rotation (keep last N)
 
-## v0.5 — Quality of life
+## v0.6 — Quality of life
 - [ ] Reminders / desktop notifications for tasks due today
 - [ ] Keyboard shortcuts (`N` new task, `/` search, etc.)
 - [ ] CI workflow running pytest on every push/PR

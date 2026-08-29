@@ -1,7 +1,10 @@
-/* Headless unit tests for static/core.js (run: node tests/test_core_logic.js).
+/* Headless unit tests for TrackerCore (run: node tests/test_core_logic.js).
    Covers the tricky parts of the due-date feature: timezone-safe parsing,
-   day-level overdue/today detection, and task ordering. */
-const assert = require("assert");
+   day-level overdue/today detection, and task ordering.
+   Now loads from src/utils/core.js (React build) */
+import assert from "assert";
+import * as Core from "../src/utils/core.js";
+
 const {
   todayString,
   addDays,
@@ -16,7 +19,7 @@ const {
   compareDay,
   dueStatus,
   compareTasks,
-} = require("../static/core.js");
+} = Core.default || Core;
 
 let passed = 0;
 function test(name, fn) {
@@ -38,7 +41,6 @@ test("todayString zero-pads month and day", () => {
 /* ===== parseDateOnly ===== */
 test("parseDateOnly keeps date-only strings on the same local day", () => {
   const d = parseDateOnly("2026-08-25");
-  // Component check instead of getTime(): immune to machine timezone.
   assert.deepStrictEqual(
     [d.getFullYear(), d.getMonth(), d.getDate()],
     [2026, 7, 25]
@@ -130,7 +132,7 @@ function ids(tasks) {
 
 test("priority stays the primary sort key", () => {
   const tasks = [
-    { id: 3, priority: "Low", due_date: "2026-08-20" }, // overdue but Low
+    { id: 3, priority: "Low", due_date: "2026-08-20" },
     { id: 1, priority: "High", due_date: null },
     { id: 2, priority: "Medium", due_date: null },
   ];
@@ -140,8 +142,8 @@ test("priority stays the primary sort key", () => {
 test("within same priority, overdue sorts before plain tasks", () => {
   const tasks = [
     { id: 1, priority: "High", due_date: "2026-09-01" },
-    { id: 2, priority: "High", due_date: "2026-08-20" }, // overdue
-    { id: 3, priority: "High", due_date: "2026-08-25" }, // due today
+    { id: 2, priority: "High", due_date: "2026-08-20" },
+    { id: 3, priority: "High", due_date: "2026-08-25" },
   ];
   assert.deepStrictEqual(ids(tasks.slice().sort((a, b) => compareTasks(a, b, NOW))), [2, 3, 1]);
 });
@@ -151,7 +153,6 @@ test("completed tasks never claim urgency over an equal pending task", () => {
     { id: 1, priority: "High", completed: true, due_date: "2026-08-24" },
     { id: 2, priority: "High", completed: false, due_date: "2026-08-24" },
   ];
-  // Same priority, same due day: the pending one is overdue-urgent, done one isn't.
   assert.deepStrictEqual(ids(tasks.slice().sort((a, b) => compareTasks(a, b, NOW))), [2, 1]);
 });
 
@@ -179,8 +180,6 @@ test("missing priority defaults to Medium", () => {
   ];
   assert.deepStrictEqual(ids(tasks.slice().sort((a, b) => compareTasks(a, b, NOW))), [1, 2, 3]);
 });
-
-console.log(`\n${passed} frontend logic tests passed`);
 
 /* ===== datetime-local helpers (deadline time feature) ===== */
 
@@ -214,9 +213,8 @@ test("isPastDue flags past datetimes", () => {
 });
 
 test("isPastDue honours grace window and treats 'now' as not-yet-past", () => {
-  assert.strictEqual(isPastDue("2026-08-25T12:00", NOW2), false); // equal to now
+  assert.strictEqual(isPastDue("2026-08-25T12:00", NOW2), false);
   assert.strictEqual(isPastDue("2026-08-25T11:59", NOW2), true);
-  // Picked "now"; submit lag makes it technically past -> grace saves it
   assert.strictEqual(isPastDue("2026-08-25T11:59", NOW2, 1), false);
   assert.strictEqual(isPastDue("2026-08-25T13:00", NOW2), false);
 });
@@ -231,7 +229,7 @@ test("hasTimeComponent distinguishes midnight from real times", () => {
   assert.strictEqual(hasTimeComponent("2026-08-25T14:30:45"), true);
   assert.strictEqual(hasTimeComponent("2026-08-25T00:00"), false);
   assert.strictEqual(hasTimeComponent("2026-08-25T00:00:00"), false);
-  assert.strictEqual(hasTimeComponent("2026-08-25"), false); // date-only legacy
+  assert.strictEqual(hasTimeComponent("2026-08-25"), false);
 });
 
 /* ===== split date + time inputs (calendar + clock pickers) ===== */
@@ -260,3 +258,5 @@ test("combineDeadline merges fields; time defaults to midnight; empty -> null", 
   assert.strictEqual(combineDeadline("", "14:30"), null);
   assert.strictEqual(combineDeadline(null, null), null);
 });
+
+console.log(`\n${passed} frontend logic tests passed`);

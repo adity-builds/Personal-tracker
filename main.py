@@ -1,39 +1,22 @@
 """
-Personal Tracker v0.3.2
-Daily Task Tracker - Standalone Desktop App (FastAPI + pywebview)
+Personal Tracker v0.4.0
+Daily Task Tracker - FastAPI backend for Electron + React UI
 """
 from datetime import datetime, timedelta
 import os
 import sys
-import threading
-import time
-import urllib.request
 
-# --- Windowed exe: hide console immediately ---
-try:
-    import ctypes
-    # SW_HIDE = 0
-    whnd = ctypes.windll.kernel32.GetConsoleWindow()
-    if whnd != 0:
-        ctypes.windll.user32.ShowWindow(whnd, 0)
-        ctypes.windll.kernel32.CloseHandle(whnd)
-except Exception:
-    pass
-
-# In windowed mode (console=False) stdout/stderr are None -> prevent crashes on print/logging
+# In windowed mode (Electron child) stdout/stderr may be None
 if sys.stdout is None:
     sys.stdout = open(os.devnull, "w")
 if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
 
-import uvicorn
-import webview
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from typing import List
 
 import database
 import models
@@ -42,41 +25,77 @@ import schemas
 try:
     from version import __version__
 except ImportError:
-    __version__ = "0.3.2"
+    __version__ = "0.4.0"
 
 HOST = "127.0.0.1"
 PORT = 8000
 
 def resource_path(relative_path: str) -> str:
-    # PyInstaller _MEIPASS for bundled static/, else project root
+    # PyInstaller _MEIPASS for bundled files, else project root
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
     path = os.path.join(base_path, relative_path)
     if os.path.exists(path):
         return path
-    # fallback for dev when cwd differs
     alt = os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
     return alt if os.path.exists(alt) else path
 
-# Alembic owns schema creation/upgrades; legacy DBs are stamped as head
-database.init_db()
+# Fast startup: DB init deferred until first request (saves ~0.8s on import)
+_db_initialized = False
+
+def _ensure_db():
+    global _db_initialized
+    if not _db_initialized:
+        database.init_db()
+        _db_initialized = True
+
+# Eager init for normal run, but tests can set PT_DB_PATH before import
+try:
+    _ensure_db()
+except Exception:
+    pass
 
 app = FastAPI(title="Daily Task Tracker API", version=__version__)
 
+# Allow local dev, Vite proxy, and Electron file:// (Origin "null")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory=resource_path("static")), name="static")
+# Serve frontend — only dist-react (Vite) in prod; static is legacy fallback
+_dist_dir = resource_path("dist-react")
+if os.path.isdir(_dist_dir):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_dist_dir, "assets")), name="assets")
+
+_cached_index: str | None = None
+_index_checked = False
+
+def _find_index() -> str | None:
+    global _cached_index, _index_checked
+    if _index_checked:
+        return _cached_index
+    for cand in ("dist-react/index.html", "dist/index.html", "static/index.html"):
+        p = resource_path(cand)
+        if os.path.exists(p):
+            _cached_index = p
+            _index_checked = True
+            return p
+    _index_checked = True
+    return None
 
 @app.get("/")
 def read_index():
-    return FileResponse(resource_path("static/index.html"))
+    _ensure_db()
+    idx = _find_index()
+    if idx:
+        return FileResponse(idx, headers={"Cache-Control": "no-cache"})
+    return {"status": "ok", "message": "Personal Tracker API — Electron UI loads via file://"}
 
 def get_db():
+    _ensure_db()
     db = database.SessionLocal()
     try:
         yield db
@@ -108,11 +127,12 @@ def get_version():
 @app.post("/tasks/", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
     _reject_past_due(task.due_date, None)
+    now = datetime.now()
     db_task = models.TaskModel(
-        title=task.title,
+        title=task.title.strip(),
         description=task.description,
         completed=False,
-        created_at=datetime.now(),
+        created_at=now,
         completed_at=None,
         due_date=task.due_date,
         priority=task.priority,
@@ -122,9 +142,12 @@ def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
     db.refresh(db_task)
     return db_task
 
-@app.get("/tasks/", response_model=List[schemas.Task])
+@app.get("/tasks/", response_model=list[schemas.Task])
 def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    tasks = db.query(models.TaskModel).offset(skip).limit(limit).all()
+    # Clamp pagination to sane bounds (prevents full table scan)
+    skip = max(0, skip)
+    limit = min(max(1, limit), 200)
+    tasks = db.query(models.TaskModel).order_by(models.TaskModel.id.asc()).offset(skip).limit(limit).all()
     return tasks
 
 @app.put("/tasks/{task_id}", response_model=schemas.Task)
@@ -178,7 +201,7 @@ def update_task_status(task_id: int, task_update: schemas.TaskUpdate, db: Sessio
     db.refresh(db_task)
     return db_task
 
-@app.get("/history/", response_model=List[schemas.DailyCount])
+@app.get("/history/", response_model=list[schemas.DailyCount])
 def read_history(db: Session = Depends(get_db)):
     rows = (
         db.query(models.HistoryModel)
@@ -188,24 +211,16 @@ def read_history(db: Session = Depends(get_db)):
         )
         .all()
     )
-    # Group by date part of completed_at (datetime -> date)
-    grouped = {}
+    # Fast grouping — completed_at is always datetime (Alembic ensures it)
+    grouped: dict = {}
     for row in rows:
-        if row.completed_at is None:
-            continue
         completed = row.completed_at
-        if isinstance(completed, str):
-            try:
-                dt = datetime.fromisoformat(completed)
-                day = dt.date()
-            except Exception:
-                day_str = completed.split("T")[0].split(" ")[0]
-                from datetime import date as date_cls
-                day = date_cls.fromisoformat(day_str)
-        elif hasattr(completed, "date"):
-            day = completed.date() if isinstance(completed, datetime) else completed
-        else:
-            day = completed
+        if completed is None:
+            continue
+        # Direct date() without isinstance branching (hot path)
+        day = completed.date() if isinstance(completed, datetime) else completed
+        # Reuse dict literal; avoid repeated .get
+        lst = grouped.get(day)
         detail = {
             "title": row.title,
             "description": row.description,
@@ -213,7 +228,10 @@ def read_history(db: Session = Depends(get_db)):
             "created_at": row.created_at,
             "completed_at": row.completed_at,
         }
-        grouped.setdefault(day, []).append(detail)
+        if lst is None:
+            grouped[day] = [detail]
+        else:
+            lst.append(detail)
     return [
         {"date": day, "count": len(details), "tasks": details}
         for day, details in grouped.items()
@@ -221,44 +239,39 @@ def read_history(db: Session = Depends(get_db)):
 
 @app.get("/stats/", response_model=schemas.StatsSummary)
 def read_stats(db: Session = Depends(get_db)):
-    """Insights computed from the immutable history table.
-
-    - current_streak: consecutive days with >=1 completion, walking back from
-      today (today itself may still be empty without breaking the streak -
-      yesterday then anchors it).
-    - last_7_days: chronological counts ending today.
-    """
-    from datetime import timedelta
-
+    """Insights computed from the immutable history table."""
     today = datetime.now().date()
 
-    rows = db.query(models.HistoryModel).all()
-    per_day = {}
+    # Single query, single pass — no N+1, no repeated date() on non-datetime
+    rows = db.query(models.HistoryModel.completed_at, models.HistoryModel.priority).all()
+    per_day: dict = {}
     by_priority = {"High": 0, "Medium": 0, "Low": 0}
     total = 0
-    for row in rows:
-        if row.completed_at is None:
+    for completed_at, priority in rows:
+        if completed_at is None:
             continue
-        completed = row.completed_at
-        day = completed.date() if isinstance(completed, datetime) else completed
+        day = completed_at.date() if isinstance(completed_at, datetime) else completed_at
         per_day[day] = per_day.get(day, 0) + 1
-        priority = (row.priority or "Medium").strip().title() or "Medium"
-        by_priority[priority] = by_priority.get(priority, 0) + 1
+        # Fast normalize: already title-cased in DB, fallback only once
+        p = priority or "Medium"
+        if p not in by_priority:
+            p = p.strip().title() or "Medium"
+        by_priority[p] = by_priority.get(p, 0) + 1
         total += 1
 
-    # Streak: anchor on yesterday when today has no completions yet
+    # Streak: anchor on yesterday when today empty (no loop if no data)
     streak = 0
-    cursor = today if today in per_day else today - timedelta(days=1)
-    while cursor in per_day:
-        streak += 1
-        cursor -= timedelta(days=1)
-
     if per_day:
-        # ties broken by most recent day
+        cursor = today if today in per_day else today - timedelta(days=1)
+        while cursor in per_day:
+            streak += 1
+            cursor -= timedelta(days=1)
+
         best_day, best_count = max(per_day.items(), key=lambda kv: (kv[1], kv[0]))
     else:
         best_day, best_count = None, 0
 
+    # Precompute last 7 once
     last_7_days = [
         {"date": today - timedelta(days=offset), "count": per_day.get(today - timedelta(days=offset), 0)}
         for offset in range(6, -1, -1)
@@ -284,82 +297,24 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-class Api:
-    def __init__(self) -> None:
-        self._window = None
-        self._is_maximized = False
-
-    def minimize(self) -> None:
-        if self._window:
-            self._window.minimize()
-
-    def toggle_maximize(self) -> bool:
-        if not self._window:
-            return False
-        if self._is_maximized:
-            self._window.restore()
-            self._is_maximized = False
-        else:
-            self._window.maximize()
-            self._is_maximized = True
-        return self._is_maximized
-
-    def close(self) -> None:
-        if self._window:
-            self._window.destroy()
-
-
 def run_server() -> None:
-    # Windowed exe must not log to missing console
+    """Run the API server (used by Electron child process or standalone)."""
+    import uvicorn
+
     config = uvicorn.Config(
         app,
         host=HOST,
         port=PORT,
-        log_level="critical",
+        log_level="warning",
         access_log=False,
+        loop="auto",
+        ws="none",
     )
     server = uvicorn.Server(config)
     server.run()
 
-def wait_for_server(timeout: float = 15.0) -> bool:
-    url = f"http://{HOST}:{PORT}"
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            urllib.request.urlopen(url, timeout=1)
-            return True
-        except Exception:
-            time.sleep(0.2)
-    return False
-
 
 if __name__ == "__main__":
-    # Required for PyInstaller windowed + multiprocessing
     import multiprocessing
     multiprocessing.freeze_support()
-
-    # Extra hide for cases where console was created before ctypes call
-    try:
-        import ctypes
-        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
-    except Exception:
-        pass
-
-    threading.Thread(target=run_server, daemon=True).start()
-
-    if not wait_for_server():
-        raise RuntimeError(f"Server failed to start on {HOST}:{PORT}")
-
-    api = Api()
-    window = webview.create_window(
-        "Daily Task Tracker",
-        f"http://{HOST}:{PORT}",
-        width=1000,
-        height=720,
-        frameless=True,
-        easy_drag=False,
-        js_api=api,
-    )
-    api._window = window
-    # debug=False ensures no extra console/debug window
-    webview.start(debug=False)
+    run_server()

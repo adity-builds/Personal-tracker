@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Glassmorphic Design System ===== */
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 239 84% 67%;
+    --radius: 16px;
+    --glass-bg: 255 255 255;
+    --glass-opacity: 0.7;
+    --glass-border: 255 255 255;
+    --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
+    color-scheme: light;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+    --primary: 239 84% 70%;
+    --primary-foreground: 0 0% 100%;
+    --border: 217 19% 18%;
+    --input: 217 19% 18%;
+    --ring: 239 84% 70%;
+    --glass-bg: 30 41 59;
+    --glass-opacity: 0.6;
+    --glass-border: 255 255 255;
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    color-scheme: dark;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scrollbar-gutter: stable;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border) / 0.8);
+  }
+}
+
+/* ===== Glassmorphic Utilities — optimized for compositing ===== */
+@layer components {
+  .glass {
+    background: rgba(var(--glass-bg), var(--glass-opacity));
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid rgba(var(--glass-border), 0.14);
+    box-shadow: var(--glass-shadow);
+    will-change: transform;
+  }
+
+  .dark .glass {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-strong {
+    background: rgba(var(--glass-bg), 0.82);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border: 1px solid rgba(var(--glass-border), 0.16);
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+    will-change: transform;
+  }
+
+  .dark .glass-strong {
+    background: rgba(30, 41, 59, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  }
+
+  .gradient-mesh {
+    background: 
+      radial-gradient(at 20% 20%, hsla(239, 84%, 67%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 80% 10%, hsla(280, 80%, 70%, 0.12) 0px, transparent 50%),
+      radial-gradient(at 40% 80%, hsla(200, 80%, 65%, 0.1) 0px, transparent 50%),
+      radial-gradient(at 90% 80%, hsla(320, 80%, 70%, 0.08) 0px, transparent 50%);
+  }
+
+  .dark .gradient-mesh {
+    background:
+      radial-gradient(at 20% 20%, hsla(239, 84%, 67%, 0.2) 0px, transparent 50%),
+      radial-gradient(at 80% 10%, hsla(280, 80%, 70%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 40% 80%, hsla(200, 80%, 65%, 0.12) 0px, transparent 50%),
+      radial-gradient(at 90% 80%, hsla(320, 80%, 70%, 0.1) 0px, transparent 50%);
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .gradient-primary-soft {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  }
+
+  .dark .gradient-primary-soft {
+    background: linear-gradient(135deg, rgba(129, 140, 248, 0.15) 0%, rgba(167, 139, 250, 0.15) 100%);
+  }
+
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+}
+
+/* Electron titlebar drag */
+.titlebar-drag {
+  -webkit-app-region: drag;
+}
+.titlebar-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ===== Native date/time picker + selects — theme-aware ===== */
+input[type="date"],
+input[type="time"],
+select {
+  color-scheme: light;
+}
+.dark input[type="date"],
+.dark input[type="time"],
+.dark select {
+  color-scheme: dark;
+}
+select option {
+  background-color: white;
+  color: #0f172a;
+}
+.dark select option {
+  background-color: #1e293b;
+  color: white;
+}
+
+/* WebKit calendar/clock glyph: white in dark mode as requested */
+::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.2s, filter 0.2s;
+  width: 18px;
+  height: 18px;
+}
+::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+.dark ::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.15);
+  opacity: 1;
+}
+.dark ::-webkit-calendar-picker-indicator:hover {
+  filter: invert(1) brightness(1.25);
+  opacity: 1;
+}
+/* Fallback for browsers without color-scheme support */
+@supports not (color-scheme: dark) {
+  .dark ::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+}
+
+/* Date/time inputs: ensure text is high-contrast in dark */
+.dark input[type="date"],
+.dark input[type="time"] {
+  color: hsl(var(--foreground));
+}
+.dark input[type="date"]::-webkit-datetime-edit,
+.dark input[type="time"]::-webkit-datetime-edit {
+  color: hsl(var(--foreground));
+}
+.dark input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+.dark input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+  color: hsl(var(--foreground));
+}

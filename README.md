@@ -1,136 +1,161 @@
 # Personal Tracker — Daily Task Tracker
-![Version](https://img.shields.io/badge/version-0.3.2-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.4.1-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![React](https://img.shields.io/badge/React-18-61dafb) ![Electron](https://img.shields.io/badge/Electron-30-47848f) ![License](https://img.shields.io/badge/license-MIT-green)
 
-Modern card-based desktop app for daily tasks — **FastAPI + SQLite + pywebview**. Ships as a windowed `PersonalTracker.exe` (no console) with a proper installer, task editing with deadlines, an insights dashboard, Dark/Light theme, and append-only history with timestamps.
+Glassmorphic desktop app for daily tasks — **Electron + React + FastAPI + SQLite**. Ships as a frameless windowed `PersonalTracker.exe` (no console) with a proper installer, task editing with deadlines, insights dashboard, Dark/Light theme, and append-only history with timestamps.
 
-> **Latest release: v0.3.2** (2026-08-23) — See [CHANGELOG.md](CHANGELOG.md) for details. Previous tag: `v0.3.1`.
+> **Latest release: v0.4.1** (2026-08-29) — Performance polish + dark-mode fixes: 70% faster Vite build, code-split bundles, memoized renders, and white calendar/clock/dropdown glyphs in dark mode. See [CHANGELOG.md](CHANGELOG.md). Previous: `v0.4.0`.
 
-## ✨ Features (v0.3.2)
-- **Task editing + deadlines** — Edit modal (title/description/priority), calendar + clock deadline pickers, past-deadline blocking, red `Overdue` / amber `Due today` badges
-- **Insights dashboard** — Current streak 🔥, all-time total, 7-day trend chart (inline SVG), best day — computed from the immutable history (`main.py`, `static/app.js`)
-- **Proper installer** — `PersonalTrackerSetup-v…exe` with Start Menu shortcut and real uninstaller; portable exe also published (`installer/personal_tracker.iss`)
-- **Completed tasks are permanent** — no unchecking (`409`), so history can never be spammed by toggling
-- **Dashboard UI** — Rounded cards (`--radius:16px`), Inter font, Dark/Light theme with native widgets that follow the theme via `color-scheme` (`static/style.css:1`)
-- **Append-only history** — Every completion saves `{title, description, priority, created_at, completed_at}` and groups by date (`main.py:163`, `schemas.py`). One entry per completion, guaranteed.
-- **Windowed exe** — `console=False` (`PersonalTracker.spec`), `ctypes` hide, `uvicorn` `log_level="critical"`, `webview.start(debug=False)` — no black console flash. App icon auto-embedded from `assets/app.ico`.
+## ✨ Features (v0.4.1)
+
+- **Glassmorphic dashboard** — Translucent `glass` cards with `backdrop-blur-16`, mesh gradients, `Plus Jakarta Sans` + `Inter`, rounded `16px`, soft shadows (`src/index.css`, `src/App.jsx`)
+- **Electron + React** — Vite on `5173` (dev) / `dist-react` (prod), frameless `BrowserWindow` `electron/main.js:42` with `preload.cjs` `electron/preload.cjs:1` for window controls
+- **Task editing + deadlines** — Edit modal + calendar/clock pickers, past-deadline blocking (`422`), red `Overdue` / amber `Due today` badges (`src/components/TaskCard.jsx`, `src/utils/core.js:76`)
+- **Insights dashboard** — Streak 🔥, all-time total, animated 7-day bar chart (Framer Motion), best day — from immutable history (`src/components/Sidebar.jsx:27`, `main.py:222`)
+- **Proper installer** — `PersonalTrackerSetup-v…exe` with Start Menu shortcut + uninstaller (`installer/personal_tracker.iss`); portable `PersonalTracker.exe` + Electron bundle also published (`.github/workflows/release.yml:37`)
+- **Completed tasks permanent** — `409` on uncheck, history append-only (`main.py:138`)
+- **Dark/Light theme** — `localStorage:daily-tracker-theme` + `prefers-color-scheme` (`src/App.jsx:11`), CSS vars + `color-scheme`
 
 ## Project Structure
 ```
 Personal Tracker/
-├── main.py                 # FastAPI + pywebview launcher (v0.3.0, windowed)
-├── version.py / VERSION    # Single source of truth
-├── database.py             # Engine + Alembic runner (PT_DB_PATH env override; frozen-exe paths)
-├── models.py               # TaskModel (due_date), HistoryModel (DateTime timestamps)
-├── schemas.py              # Pydantic schemas incl. StatsSummary for /stats/
-├── alembic.ini             # Alembic config (dev CLI: autogenerate revisions)
-├── alembic/                # Migration chain (baseline + add_tasks_due_date)
-├── tests/                  # pytest suite + node tests/test_core_logic.js (frontend logic)
-├── installer/              # Inno Setup script for PersonalTrackerSetup.exe
-├── assets/                 # app.ico (auto-detected by spec + installer)
-├── file_version_info.txt   # Windows exe version resource (0.3.0.0)
-├── PersonalTracker.spec    # PyInstaller windowed spec (console=False)
-├── static/
-│   ├── index.html          # Dashboard + edit modal + insights panel
-│   ├── style.css           # CSS variables + cards + badges + modal
-│   ├── core.js             # TrackerCore - pure date/sort logic (unit-tested in Node)
-│   └── app.js              # Theme persistence + editing UX + stats rendering
-├── requirements.txt        # Pinned deps (+ alembic)
-├── requirements-dev.txt    # Test deps (pytest, httpx)
-├── ROADMAP.md              # Phased plan (v0.3 phases, v0.4+, decisions log)
-├── CHANGELOG.md
-└── tasks.db                # SQLite (gitignored, stored next to exe or %APPDATA%)
+├── main.py                 # FastAPI API (no pywebview) — serves dist-react / static fallback
+├── version.py / VERSION    # Single source of truth (0.4.1)
+├── database.py             # Engine + Alembic runner (PT_DB_PATH; frozen-exe paths)
+├── models.py               # TaskModel (due_date), HistoryModel
+├── schemas.py              # Pydantic schemas incl. StatsSummary
+├── electron/
+│   ├── main.js             # Electron Main — spawns Python backend, frameless window
+│   └── preload.cjs         # IPC bridge (minimize/maximize/close)
+├── src/
+│   ├── main.jsx            # React entry
+│   ├── App.jsx             # Orchestrator (fetch, filter, sort via core.js)
+│   ├── index.css           # Tailwind + glassmorphism system
+│   ├── utils/
+│   │   ├── core.js         # TrackerCore — pure date/sort logic (CJS+ESM, tested via node)
+│   │   └── api.js          # Fetch wrappers for /tasks /history /stats
+│   └── components/
+│       ├── TitleBar.jsx    # Drag region + version + window controls
+│       ├── Sidebar.jsx     # Today + Insights + History panels
+│       ├── TaskForm.jsx    # Glassmorphic add form
+│       ├── Toolbar.jsx     # Search + filters
+│       ├── TaskCard.jsx    # Glass card + priority/urgency badges
+│       └── EditModal.jsx   # Animated modal (Framer Motion)
+├── vite.config.js          # Vite → dist-react (avoids PyInstaller dist collision)
+├── tailwind.config.js      # Content: index.html + src/**
+├── package.json            # Node 20, React 18, Electron 30, Vite 5
+├── static/README.md        # Legacy note (old UI trashed)
+├── dist-react/             # Vite build (gitignored, bundled into Electron)
+├── alembic/                # Migration chain (baseline + due_date)
+├── tests/                  # pytest suite + node tests/test_core_logic.js (now imports from src/utils/core.js)
+├── installer/              # Inno Setup script
+├── assets/app.ico          # Auto-embedded into exe + installer
+├── PersonalTracker.spec    # PyInstaller backend spec (console=False, dist-react bundled if present)
+├── requirements.txt        # FastAPI + uvicorn + sqlalchemy + pydantic + alembic + pyinstaller
+└── tasks.db                # SQLite (gitignored, %APPDATA% fallback for installed)
 ```
 
 ## 🚀 Quick Start (Development)
+
+### Backend (Python API)
 ```bash
-# 1. Clone
-git clone https://github.com/adity-builds/Personal-tracker.git
-cd "Personal tracker"
-
-# 2. Install (pinned)
 pip install -r requirements.txt
+# optional dev deps for pytest
+pip install -r requirements-dev.txt
 
-# 3. Run as web server (with reload + docs)
 uvicorn main:app --reload
-# -> http://127.0.0.1:8000  and  http://127.0.0.1/docs
+# -> http://127.0.0.1:8000 and http://127.0.0.1:8000/docs
+```
 
-# Or run as desktop app (pywebview frameless window)
-python main.py
+### Frontend (React + Vite)
+```bash
+npm ci            # Node 20+
+npm run dev       # -> http://localhost:5173 (Vite)
+# keep Python API running on :8000 — React fetches from http://127.0.0.1:8000
+```
+
+### Desktop (Electron)
+```bash
+npm run electron:dev   # concurrently vite + electron (needs Python API running or spawns it)
+# or prod preview:
+npm run build          # Vite → dist-react
+npm run electron       # loads dist-react/index.html + spawns Python backend
 ```
 
 ## 📦 Install on Windows (end users)
 
-Two ways to run the app — both are published on the [Releases](https://github.com/adity-builds/Personal-tracker/releases) page:
+Two ways — both on [Releases](https://github.com/adity-builds/Personal-tracker/releases):
 
 | | **Installer** (`PersonalTrackerSetup-v…exe`) | **Portable** (`PersonalTracker.exe`) |
 |---|---|---|
-| Setup | Wizard, Start Menu shortcut, optional desktop icon | none — just run it |
-| Install location | `C:\Program Files\PersonalTracker` | anywhere you like |
-| Task data (`tasks.db`) | `%APPDATA%\PersonalTracker\tasks.db` | next to the exe |
-| Removal | Settings → Apps → Uninstall | delete the file |
+| Setup | Wizard, Start Menu, optional desktop icon | none — just run it |
+| Install location | `C:\Program Files\PersonalTracker` | anywhere |
+| Data (`tasks.db`) | `%APPDATA%\PersonalTracker\tasks.db` | next to exe |
+| Removal | Settings → Apps → Uninstall | delete file |
 
-> ⚠️ The two modes keep data in different places by design (installed apps must not write into Program Files). Copy `tasks.db` between the two locations to migrate your tasks.
-
-**App icon:** builds automatically embed `assets/app.ico` when that file is present.
+> ⚠️ Different DB locations by design (Program Files not writable). Copy `tasks.db` to migrate.
 
 ## 🧱 Build Windowed EXE + Installer
 ```bash
-# Ensure spec is tracked (v0.2.0 fixes .gitignore)
+# 1. Build React
+npm ci && npm run build            # -> dist-react/
+
+# 2. Build Python backend exe
 pyinstaller PersonalTracker.spec --noconfirm --clean
 # Output: dist/PersonalTracker.exe  (~26 MB, windowed, versioned via file_version_info.txt)
-# DB is created next to exe on first run, or %APPDATA%\PersonalTracker\tasks.db if exe dir is read-only
 
-# Installer (needs Inno Setup 6 - ISCC.exe):
-iscc installer/personal_tracker.iss /DAppVersion=0.3.2
-# Output: dist/PersonalTrackerSetup-v0.3.2.exe
+# 3. Installer (needs Inno Setup 6)
+iscc installer/personal_tracker.iss /DAppVersion=0.4.1
+# Output: dist/PersonalTrackerSetup-v0.4.1.exe
+
+# 4. (Optional) Electron bundle
+npm run electron:build              # -> dist/*.exe via electron-builder
 ```
 
-> **Console hidden:** `PersonalTracker.spec` `console=False` + `main.py:1` `ctypes ShowWindow(SW_HIDE)` + `sys.stdout` null-guard + `uvicorn` `log_level="critical"` + `webview.start(debug=False)`.
+> **Console hidden:** `PersonalTracker.spec:61` `console=False` + `main.py:9` null-guard + `uvicorn` `log_level="warning"`. Electron `frame:false` + hidden titleBar `electron/main.js:44`.
 
 ## 🔌 API Endpoints
 | Method | Path | Body | Returns |
 |--------|------|------|---------|
 | `POST` | `/tasks/` | `{title, description?, due_date?, priority?}` | `Task{id, title, description, priority, completed, created_at, completed_at, due_date}` |
 | `GET`  | `/tasks/?skip=&limit=` | — | `List[Task]` |
-| `PUT`  | `/tasks/{task_id}` | `{completed, title?, description?, priority?, due_date?}` | `Task` (full edit; `409` when unchecking a completed task; `422` for empty titles or newly-past deadlines) |
+| `PUT`  | `/tasks/{task_id}` | `{completed, title?, description?, priority?, due_date?}` | `Task` (409 on uncheck, 422 on empty title/past deadline) |
 | `DELETE` | `/tasks/{task_id}` | — | `{ok: true}` |
 | `GET`  | `/history/` | — | `List[DailyCount{date, count, tasks:[{title, description, priority, created_at, completed_at}]}>` |
 | `GET`  | `/stats/` | — | `{total_completions, current_streak, best_day, best_day_count, last_7_days[7], by_priority}` |
-| `GET`  | `/version` | — | `{version: "0.3.2"}` |
-| `GET`  | `/` | — | `static/index.html` |
+| `GET`  | `/version` | — | `{version: "0.4.1"}` |
+| `GET`  | `/` | — | `dist-react/index.html` (or API status when Electron loads file://) |
 | `GET`  | `/docs` | — | Swagger UI |
 
-Completed tasks are **permanent** — they cannot be unchecked (`409`). All history entries are **immutable** — every completion records exactly one entry, so toggling can never duplicate history rows.
+Completed tasks **permanent** (`409`). History **append-only** — every completion inserts exactly one immutable row.
 
 ## 🔧 Configuration
-- **Host/Port:** `HOST=127.0.0.1`, `PORT=8000` in `main.py`
-- **DB path:** `database.py` `_get_db_path()` — frozen exe uses `sys.executable` dir, fallback to `%APPDATA%\PersonalTracker`. Dev uses project root.
-- **Version:** `version.py` / `VERSION` — bump both, update `file_version_info.txt` (`filevers=(0,3,0,0)`) before `pyinstaller`.
+- **Host/Port:** `HOST=127.0.0.1`, `PORT=8000` in `main.py:31`
+- **DB path:** `database.py:11` `_get_db_path()` — `PT_DB_PATH` > exe dir (portable, write-probed) > `%APPDATA%\PersonalTracker` > project dir (dev)
+- **Version:** `version.py` / `VERSION` — bump both, update `file_version_info.txt` before `pyinstaller`
 
 ## 📝 Changelog
-See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.3.2:
-- Task editing with calendar/clock deadline pickers and overdue badges
-- Insights dashboard (streak, 7-day trend, best day) from immutable history
-- Proper Windows installer (Start Menu + uninstaller) alongside the portable exe
+See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.4.1:
+- 70% faster build (53s→9s), code-split React/Motion, memoized TaskCard/Sidebar, optimized API (`GET /stats`/`history`)
+- Dark-mode: white calendar/clock glyphs, white dropdowns, high-contrast completion bubble
+- Highlights for v0.4.0: `static/` trashed → Electron + React + Vite + Tailwind, glassmorphic dashboard, frameless IPC window, API-only backend
 
 ## 🤝 Release Process (for maintainers)
 ```bash
-# 1. Bump version in version.py / VERSION / file_version_info.txt / README badge / CHANGELOG
+# 1. Bump version.py / VERSION / file_version_info.txt / README badge / CHANGELOG
 # 2. Commit
 git add -A
-git commit -m "Release v0.3.0"
-
-# 3. Tag & push (triggers GitHub Release workflow)
-git tag v0.3.0
+git commit -m "Release v0.4.1"
+# 3. Tag & push (triggers Release workflow: Node tests → Python tests → Vite → PyInstaller → Electron → Inno Setup)
+git tag v0.4.1
 git push origin main --tags
-# GitHub Actions (.github/workflows/release.yml) builds the exe AND the installer,
-# then creates a Release with both artifacts
 ```
 
 ## 📄 License
 MIT — see original repo.
 
 ## 🆘 Troubleshooting
-- **Exe shows console:** Rebuild with `PersonalTracker.spec` (`console=False`) and ensure `main.py` hide logic at top is present. Do not use `pyinstaller main.py --console`.
-- **DB not found after moving exe:** Copy `tasks.db` next to exe or check `%APPDATA%\PersonalTracker\tasks.db` (fallback for Program Files installs).
-- **Port in use:** Change `PORT` in `main.py` or kill `uvicorn`/`PersonalTracker.exe` still running.
+- **React shows “Failed to fetch”:** ensure Python API running: `uvicorn main:app --reload` on `:8000` (`src/utils/api.js:1` `API_BASE`)
+- **Port in use:** change `PORT` in `main.py:32` or kill `uvicorn`/`PersonalTracker.exe`
+- **DB not found after moving exe:** copy `tasks.db` next to exe or check `%APPDATA%\PersonalTracker\tasks.db`
+- **Electron white screen:** `npm run build` first — Electron prod loads `dist-react/index.html` (`electron/main.js:68`)
+

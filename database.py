@@ -84,16 +84,18 @@ def _get_db_path() -> str:
 
 
 DB_PATH = _get_db_path()
-# Ensure parent exists before SQLAlchemy tries to open the file
 Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-# Use forward slashes for the URL — backslashes + spaces in
-# 'C:\Program Files\...' break the sqlite URL on Windows
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{Path(DB_PATH).as_posix()}"
 
+# Fast startup: no echo, pre_ping disabled (SQLite file), timeout 15s for busy DB
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False, "timeout": 15},
+    pool_pre_ping=False,
+    echo=False,
+    future=True,
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
 
 Base = declarative_base()
 
