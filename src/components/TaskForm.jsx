@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Plus, Calendar, Clock, Flag, Sparkles, AlertCircle } from 'lucide-react'
-import * as Core from '../utils/core.js'
+import { todayString, combineDeadline, isPastDeadline } from '../utils/core.js'
 
 export default function TaskForm({ onCreate, apiError }) {
   const [title, setTitle] = useState('')
@@ -11,13 +11,13 @@ export default function TaskForm({ onCreate, apiError }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const today = useMemo(() => Core.todayString(new Date()), [])
+  const today = useMemo(() => todayString(new Date()), [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
-    const dueDate = Core.combineDeadline(date, time)
-    if (dueDate && Core.isPastDeadline(date, time, new Date(), 1)) {
+    const dueDate = combineDeadline(date, time)
+    if (dueDate && isPastDeadline(date, time, new Date(), 1)) {
       setError("Deadline can't be in the past.")
       return
     }

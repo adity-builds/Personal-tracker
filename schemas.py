@@ -29,17 +29,6 @@ class Task(TaskBase):
     created_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
-class HistoryEntry(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    task_id: Optional[int] = None
-    title: str
-    description: Optional[str] = None
-    priority: str = "Medium"
-    created_at: Optional[datetime] = None
-    completed_at: datetime
-
 class HistoryTaskDetail(BaseModel):
     title: str
     description: Optional[str] = None

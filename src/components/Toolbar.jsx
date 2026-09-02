@@ -10,6 +10,7 @@ function Toolbar({ query, setQuery, priority, setPriority, status, setStatus, co
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search"
+          aria-label="Search tasks"
           className="w-full h-8 pl-8 pr-3 rounded-lg bg-muted border-0 focus:bg-background focus:ring-1 focus:ring-foreground/20 outline-none text-sm transition placeholder:text-muted-foreground"
         />
       </div>

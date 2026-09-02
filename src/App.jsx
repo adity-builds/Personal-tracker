@@ -6,7 +6,7 @@ import TaskForm from './components/TaskForm.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import TaskCard from './components/TaskCard.jsx'
 import * as api from './utils/api.js'
-import * as Core from './utils/core.js'
+import { compareTasks, todayString } from './utils/core.js'
 import { useNow } from './hooks/useNow.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import LiveClock from './components/LiveClock.jsx'
@@ -92,18 +92,18 @@ export default function App() {
     api.fetchVersion().then(v => v && setVersion(v.version))
   }, [loadAll])
 
-  // Keyboard shortcuts — isolated effect, no re-subscribe on editing change
+  // Keyboard shortcuts — isolated effect, no re-subscribe
   useEffect(() => {
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        document.querySelector('input[placeholder="Search tasks…"]')?.focus()
+        document.querySelector('input[placeholder="Search"]')?.focus()
       }
-      if (e.key === 'Escape' && editing) setEditing(null)
+      if (e.key === 'Escape') setEditing(prev => (prev ? null : prev))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing])
+  }, [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -118,12 +118,12 @@ export default function App() {
         }
         return true
       })
-      .sort((a,b) => Core.compareTasks(a,b, now))
+      .sort((a,b) => compareTasks(a,b, now))
   }, [tasks, query, priority, status, now])
 
   const todayCount = useMemo(() => {
     if (!history.length) return 0
-    const today = Core.todayString(now)
+    const today = todayString(now)
     for (let i = 0; i < history.length; i++) {
       if (history[i].date === today) return history[i].count
     }
@@ -152,6 +152,9 @@ export default function App() {
   }, [loadAll])
 
   const handleEditClose = useCallback(() => setEditing(null), [])
+
+  const pendingCount = useMemo(() => tasks.filter(t => !t.completed).length, [tasks])
+  const doneCount = useMemo(() => tasks.filter(t => t.completed).length, [tasks])
 
   return (
     <div className="min-h-screen gradient-mesh">
@@ -188,25 +191,11 @@ export default function App() {
 
         <div className="flex items-center gap-2 shrink-0">
           <LiveClock is24Hour={is24Hour} />
-          <div className="lg:hidden">
-            <LiveClock compact is24Hour={is24Hour} />
-          </div>
-          <div className="hidden lg:flex items-center bg-card border rounded-full h-8 px-1.5 shadow-sm">
+          <div className="flex items-center bg-card border rounded-full h-8 px-1.5 shadow-sm">
             <select
               value={is24Hour ? '24' : '12'}
               onChange={e => setIs24Hour(e.target.value === '24')}
               className="bg-transparent text-xs font-medium px-2 py-1 outline-none cursor-pointer"
-              aria-label="Clock format"
-            >
-              <option value="12">12h</option>
-              <option value="24">24h</option>
-            </select>
-          </div>
-          <div className="lg:hidden">
-            <select
-              value={is24Hour ? '24' : '12'}
-              onChange={e => setIs24Hour(e.target.value === '24')}
-              className="bg-card border rounded-full h-8 px-2 text-xs font-medium shadow-sm outline-none cursor-pointer"
               aria-label="Clock format"
             >
               <option value="12">12h</option>
@@ -268,10 +257,10 @@ export default function App() {
                 <p className="text-xs text-muted-foreground">Adjust search or filters.</p>
               </motion.div>
             ) : (
-              <motion.ul layout className="space-y-2">
+              <motion.ul className="space-y-2">
                 <AnimatePresence initial={false}>
                   {filtered.map(task => (
-                    <motion.li key={task.id} layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }}>
+                    <motion.li key={task.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }}>
                       <TaskCard task={task} now={now} onToggle={handleToggle} onEdit={setEditing} onDelete={handleDelete} />
                     </motion.li>
                   ))}
@@ -281,7 +270,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
-            <span className="w-1 h-1 rounded-full bg-emerald-500" /> {tasks.filter(t=>!t.completed).length} pending • {tasks.filter(t=>t.completed).length} done
+            <span className="w-1 h-1 rounded-full bg-emerald-500" /> {pendingCount} pending • {doneCount} done
           </div>
         </div>
 
@@ -291,11 +280,9 @@ export default function App() {
         </div>
       </motion.div>
 
-      {editing && (
-        <Suspense fallback={null}>
-          <EditModal task={editing} open={!!editing} onClose={handleEditClose} onSave={handleEditSave} />
-        </Suspense>
-      )}
+      <Suspense fallback={null}>
+        <EditModal task={editing} open={!!editing} onClose={handleEditClose} onSave={handleEditSave} />
+      </Suspense>
     </div>
   )
 }

@@ -30,5 +30,3 @@ export function useNow(intervalMs = 1000) {
 
   return now
 }
-
-export default useNow

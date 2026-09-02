@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Save, Calendar, Clock, Flag, AlertCircle } from 'lucide-react'
-import * as Core from '../utils/core.js'
+import { hasTimeComponent, combineDeadline, sameMinute, isPastDeadline } from '../utils/core.js'
 
 export default function EditModal({ task, open, onClose, onSave }) {
   const [title, setTitle] = useState('')
@@ -18,18 +18,18 @@ export default function EditModal({ task, open, onClose, onSave }) {
       setDescription(task.description || '')
       setPriority(task.priority || 'Medium')
       setDate(task.due_date ? String(task.due_date).slice(0,10) : '')
-      setTime(Core.hasTimeComponent(task.due_date) ? String(task.due_date).slice(11,16) : '')
+      setTime(hasTimeComponent(task.due_date) ? String(task.due_date).slice(11,16) : '')
       setError('')
     }
   }, [task, open])
 
-  if (!open || !task) return null
+  if (!task) return null
 
   const handleSave = async () => {
     if (!title.trim()) { setError('Title cannot be empty.'); return }
-    const dueValue = Core.combineDeadline(date, time)
-    const keptExisting = dueValue !== null && Core.sameMinute(dueValue, task.due_date)
-    if (dueValue && !keptExisting && Core.isPastDeadline(date, time, new Date(), 1)) {
+    const dueValue = combineDeadline(date, time)
+    const keptExisting = dueValue !== null && sameMinute(dueValue, task.due_date)
+    if (dueValue && !keptExisting && isPastDeadline(date, time, new Date(), 1)) {
       setError("Deadline can't be in the past."); return
     }
     setSaving(true); setError('')
@@ -54,6 +54,9 @@ export default function EditModal({ task, open, onClose, onSave }) {
           className="fixed inset-0 z-50 grid place-items-center p-4 bg-slate-900/50 backdrop-blur-sm"
           onClick={onClose}>
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-modal-title"
             initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ type: 'spring', damping: 24, stiffness: 300 }}
             onClick={e => e.stopPropagation()}
@@ -61,7 +64,7 @@ export default function EditModal({ task, open, onClose, onSave }) {
           >
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="font-medium tracking-tight">Edit task</h3>
+                <h3 id="edit-modal-title" className="font-medium tracking-tight">Edit task</h3>
                 <p className="text-xs text-muted-foreground">Update task details.</p>
               </div>
               <button onClick={onClose} className="w-8 h-8 grid place-items-center rounded-lg bg-muted hover:bg-muted/80 transition">

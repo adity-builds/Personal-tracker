@@ -314,26 +314,94 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 
 class Api:
-    """JS bridge for pywebview window controls (frameless)."""
+    """JS bridge for pywebview window controls (frameless, resizable, workArea-aware)."""
 
     def __init__(self) -> None:
         self._window = None
         self._is_maximized = False
+        self._prev_rect = None  # (x, y, w, h) before workArea maximize
 
     def minimize(self) -> None:
         if self._window:
             self._window.minimize()
 
+    def _get_hwnd(self):
+        try:
+            import ctypes
+            hwnd = ctypes.windll.user32.FindWindowW(None, "Personal Tracker")
+            return hwnd if hwnd else None
+        except Exception:
+            return None
+
+    def _get_work_area(self):
+        try:
+            import ctypes
+            from ctypes import wintypes
+            rect = wintypes.RECT()
+            ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(rect), 0)
+            return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+        except Exception:
+            return None
+
     def toggle_maximize(self) -> bool:
         if not self._window:
             return False
+        # Use workArea so taskbar stays visible (frameless maximize otherwise covers it)
         if self._is_maximized:
-            self._window.restore()
+            try:
+                if self._prev_rect:
+                    x, y, w, h = self._prev_rect
+                    hwnd = self._get_hwnd()
+                    if hwnd:
+                        import ctypes
+                        ctypes.windll.user32.MoveWindow(hwnd, x, y, w, h, True)
+                    else:
+                        self._window.restore()
+                else:
+                    self._window.restore()
+            except Exception:
+                try:
+                    self._window.restore()
+                except Exception:
+                    pass
             self._is_maximized = False
+            self._prev_rect = None
         else:
-            self._window.maximize()
+            try:
+                import ctypes
+                hwnd = self._get_hwnd()
+                if hwnd:
+                    rect = ctypes.wintypes.RECT()
+                    ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+                    self._prev_rect = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+                    wa = self._get_work_area()
+                    if wa:
+                        x, y, w, h = wa
+                        ctypes.windll.user32.MoveWindow(hwnd, x, y, w, h, True)
+                    else:
+                        self._window.maximize()
+                else:
+                    self._window.maximize()
+            except Exception:
+                try:
+                    self._window.maximize()
+                except Exception:
+                    pass
             self._is_maximized = True
         return self._is_maximized
+
+    def start_drag(self) -> None:
+        """Initiate system drag for frameless window (titlebar mousedown)."""
+        try:
+            import ctypes
+            hwnd = self._get_hwnd()
+            if hwnd:
+                WM_NCLBUTTONDOWN = 0xA1
+                HTCAPTION = 2
+                ctypes.windll.user32.ReleaseCapture()
+                ctypes.windll.user32.SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0)
+        except Exception:
+            pass
 
     def close(self) -> None:
         if self._window:
@@ -440,11 +508,35 @@ if __name__ == "__main__":
             width=win_w,
             height=win_h,
             min_size=(980, 640),
+            resizable=True,
             frameless=True,
             easy_drag=False,
             js_api=api,
         )
         api._window = window
+        # Fix frameless window to be resizable via WS_THICKFRAME (winforms sets FormBorderStyle=None which disables resize)
+        def _fix_frameless_resizable():
+            try:
+                import ctypes
+                hwnd = api._get_hwnd()
+                if not hwnd:
+                    return
+                GWL_STYLE = -16
+                WS_THICKFRAME = 0x00040000
+                WS_MAXIMIZEBOX = 0x00010000
+                WS_MINIMIZEBOX = 0x00020000
+                style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
+                style |= WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX
+                ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style)
+                # Force frame redraw
+                SWP_FRAMECHANGED = 0x0020
+                SWP_NOMOVE = 0x0002
+                SWP_NOSIZE = 0x0001
+                SWP_NOZORDER = 0x0004
+                ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER)
+            except Exception:
+                pass
+
         # Shim: make React's window.electronAPI also work on pywebview
         # (TitleBar checks window.electronAPI, pywebview exposes window.pywebview.api)
         def _shim_electron_api():
@@ -456,6 +548,7 @@ if __name__ == "__main__":
                             minimize: () => window.pywebview.api.minimize(),
                             toggleMaximize: () => window.pywebview.api.toggle_maximize(),
                             close: () => window.pywebview.api.close(),
+                            startDrag: () => window.pywebview.api.start_drag(),
                             isElectron: false
                         };
                     }
@@ -467,9 +560,12 @@ if __name__ == "__main__":
         # Use webview start with shim after window loads
         try:
             # webview.start blocks until window closed
-            # Inject shim via 'loaded' event if available
+            # Inject shim + fix resizable via 'loaded' event if available
             try:
-                window.events.loaded += lambda: _shim_electron_api()
+                def _on_loaded():
+                    _shim_electron_api()
+                    _fix_frameless_resizable()
+                window.events.loaded += lambda: _on_loaded()
             except Exception:
                 pass
             webview.start(debug=False)

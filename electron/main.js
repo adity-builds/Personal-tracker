@@ -117,6 +117,11 @@ function createWindow() {
     minHeight: 640,
     frame: false,
     titleBarStyle: 'hidden',
+    thickFrame: true,
+    resizable: true,
+    movable: true,
+    minimizable: true,
+    maximizable: true,
     backgroundColor: '#f8fafc',
     show: false,
     center: true,
@@ -128,12 +133,25 @@ function createWindow() {
     },
   })
 
-  // IPC for window controls
+  // IPC for window controls — maximize respects workArea (taskbar)
+  let isWorkAreaMaximized = false
+  let prevBounds = null
   ipcMain.handle('window:minimize', () => mainWindow?.minimize())
   ipcMain.handle('window:maximize', () => {
     if (!mainWindow) return false
-    if (mainWindow.isMaximized()) { mainWindow.restore(); return false }
-    mainWindow.maximize(); return true
+    if (isWorkAreaMaximized) {
+      isWorkAreaMaximized = false
+      if (prevBounds) mainWindow.setBounds(prevBounds)
+      else mainWindow.unmaximize()
+      return false
+    }
+    // If native maximized, restore first
+    if (mainWindow.isMaximized()) mainWindow.restore()
+    prevBounds = mainWindow.getBounds()
+    const { workArea } = screen.getPrimaryDisplay()
+    mainWindow.setBounds(workArea)
+    isWorkAreaMaximized = true
+    return true
   })
   ipcMain.handle('window:close', () => mainWindow?.close())
 

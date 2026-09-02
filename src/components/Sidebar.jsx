@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react'
 import { Flame, Trophy, TrendingUp, Calendar, CheckCircle2, Clock } from 'lucide-react'
 import { motion } from 'framer-motion'
-import * as Core from '../utils/core.js'
+import { todayString } from '../utils/core.js'
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
@@ -20,8 +20,8 @@ function formatDateTime(dt) {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
-export function TodayCard({ count, now }) {
-  const liveDate = now ? now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : ''
+export const TodayCard = memo(function TodayCard({ count, now }) {
+  const liveDate = useMemo(() => now ? now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : '', [now])
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="rounded-xl bg-card border p-4 shadow-sm">
       <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium tracking-wide">
@@ -36,7 +36,7 @@ export function TodayCard({ count, now }) {
       </div>
     </motion.div>
   )
-}
+})
 
 export const InsightsPanel = memo(function InsightsPanel({ stats, loading, error, onRetry, now }) {
   if (loading && !stats) return (
@@ -92,11 +92,11 @@ export const InsightsPanel = memo(function InsightsPanel({ stats, loading, error
       w = Array.from({length:7}).map((_, i) => {
         const d = new Date(baseNow)
         d.setDate(baseNow.getDate() - (6 - i))
-        return { date: Core.todayString(d), count: 0 }
+        return { date: todayString(d), count: 0 }
       })
     }
     const m = Math.max(...w.map(d => d.count), 1)
-    const t = Core.todayString(baseNow)
+    const t = todayString(baseNow)
     return { week: w, max: m, todayStr: t }
   }, [s.last_7_days, now])
 
@@ -170,8 +170,25 @@ export const InsightsPanel = memo(function InsightsPanel({ stats, loading, error
 })
 
 export const HistoryPanel = memo(function HistoryPanel({ history, now }) {
-  const todayStr = useMemo(() => Core.todayString(now || new Date()), [now])
-  if (!history) return null
+  const todayStr = useMemo(() => todayString(now || new Date()), [now])
+  if (!history || history.length === 0) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }} className="rounded-xl bg-card border p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+          <h3 className="text-xs font-medium tracking-wide text-muted-foreground">History</h3>
+          <span className="ml-auto text-xs bg-muted px-2 py-0.5 rounded-full tabular-nums">0d</span>
+        </div>
+        <div className="py-8 text-center">
+          <div className="w-10 h-10 mx-auto rounded-lg bg-muted grid place-items-center mb-3">
+            <CheckCircle2 className="w-5 h-5 text-muted-foreground/50" />
+          </div>
+          <p className="text-sm text-muted-foreground">No history yet</p>
+          <p className="text-xs text-muted-foreground/70">Completed tasks appear here</p>
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }} className="rounded-xl bg-card border p-4 shadow-sm">
@@ -181,61 +198,43 @@ export const HistoryPanel = memo(function HistoryPanel({ history, now }) {
         <span className="ml-auto text-xs bg-muted px-2 py-0.5 rounded-full tabular-nums">{history.length}d</span>
       </div>
 
-      {history.length === 0 ? (
-        <div className="py-8 text-center">
-          <div className="w-10 h-10 mx-auto rounded-lg bg-muted grid place-items-center mb-3">
-            <CheckCircle2 className="w-5 h-5 text-muted-foreground/50" />
-          </div>
-          <p className="text-sm text-muted-foreground">No history yet</p>
-          <p className="text-xs text-muted-foreground/70">Completed tasks appear here</p>
-        </div>
-      ) : (
-        <div className="space-y-2 max-h-[380px] overflow-auto pr-1 -mr-1">
-          {history.map((entry) => {
-            const isToday = entry.date === todayStr
-            return (
-              <div key={entry.date} className={`rounded-lg border p-3 ${isToday ? 'bg-muted border-foreground/10' : 'bg-card border hover:bg-muted/50'}`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{formatDate(entry.date)}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${isToday ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'}`}>{entry.count}</span>
-                </div>
-                {entry.tasks?.length > 0 && (
-                  <ul className="mt-2 space-y-1.5">
-                    {entry.tasks.slice(0, 12).map((t, idx) => (
-                      <li key={idx} className="flex gap-2 text-xs">
-                        <span className="mt-1.5 w-1 h-1 rounded-full bg-foreground/60 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate leading-tight">{typeof t === 'string' ? t : t.title}</div>
-                          {typeof t !== 'string' && (t.created_at || t.completed_at) && (
-                            <div className="text-muted-foreground text-[11px] tabular-nums">
-                              {t.created_at && t.completed_at && String(t.created_at).slice(0,10) === String(t.completed_at).slice(0,10)
-                                ? `${formatTime(t.created_at)} → ${formatTime(t.completed_at)}`
-                                : `${t.completed_at ? formatDateTime(t.completed_at) : ''}`}
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                    {entry.tasks.length > 12 && (
-                      <li className="text-xs text-muted-foreground pl-3">+{entry.tasks.length - 12} more</li>
-                    )}
-                  </ul>
-                )}
+      <div className="space-y-2 max-h-[380px] overflow-auto pr-1 -mr-1">
+        {history.map((entry) => {
+          const isToday = entry.date === todayStr
+          return (
+            <div key={entry.date} className={`rounded-lg border p-3 ${isToday ? 'bg-muted border-foreground/10' : 'bg-card border hover:bg-muted/50'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">{formatDate(entry.date)}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${isToday ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'}`}>{entry.count}</span>
               </div>
-            )
-          })}
-        </div>
-      )}
+              {entry.tasks?.length > 0 && (
+                <ul className="mt-2 space-y-1.5">
+                  {entry.tasks.slice(0, 12).map((t, idx) => (
+                    <li key={idx} className="flex gap-2 text-xs">
+                      <span className="mt-1.5 w-1 h-1 rounded-full bg-foreground/60 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate leading-tight">{typeof t === 'string' ? t : t.title}</div>
+                        {typeof t !== 'string' && (t.created_at || t.completed_at) && (
+                          <div className="text-muted-foreground text-[11px] tabular-nums">
+                            {t.created_at && t.completed_at && String(t.created_at).slice(0,10) === String(t.completed_at).slice(0,10)
+                              ? `${formatTime(t.created_at)} → ${formatTime(t.completed_at)}`
+                              : `${t.completed_at ? formatDateTime(t.completed_at) : ''}`}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                  {entry.tasks.length > 12 && (
+                    <li className="text-xs text-muted-foreground pl-3">+{entry.tasks.length - 12} more</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </motion.div>
   )
 })
 
-export default function Sidebar({ stats, history, todayCount, loading, error, onRetry, now }) {
-  return (
-    <aside className="w-[340px] shrink-0 flex flex-col gap-4">
-      <TodayCard count={todayCount} now={now} />
-      <InsightsPanel stats={stats} loading={loading} error={error} onRetry={onRetry} now={now} />
-      <HistoryPanel history={history} now={now} />
-    </aside>
-  )
-}
+

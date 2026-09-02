@@ -1,6 +1,6 @@
 import { memo, useMemo, useCallback } from 'react'
-import { Pencil, Trash2, Clock, Flag, Check } from 'lucide-react'
-import * as Core from '../utils/core.js'
+import { Pencil, Trash2, Clock, Check } from 'lucide-react'
+import { dueStatus, hasTimeComponent } from '../utils/core.js'
 
 function priorityDot(p) {
   switch (p) {
@@ -11,7 +11,7 @@ function priorityDot(p) {
 }
 
 function TaskCard({ task, onToggle, onEdit, onDelete, now }) {
-  const urgency = Core.dueStatus(task, now)
+  const urgency = dueStatus(task, now)
 
   const { dueText, timeText } = useMemo(() => {
     if (!task.due_date) return { dueText: null, timeText: '' }
@@ -22,16 +22,16 @@ function TaskCard({ task, onToggle, onEdit, onDelete, now }) {
       dt = new Date(Number(dueDay.slice(0, 4)), Number(dueDay.slice(5, 7)) - 1, Number(dueDay.slice(8, 10))).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     } catch { dt = dueDay }
     let tt = ''
-    if (Core.hasTimeComponent(s)) {
+    if (hasTimeComponent(s)) {
       const d = new Date(s)
       if (!isNaN(d.getTime())) tt = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
     }
     return { dueText: dt, timeText: tt }
   }, [task.due_date])
 
-  const handleToggle = useCallback(() => { if (!task.completed) onToggle(task) }, [task, onToggle])
-  const handleEdit = useCallback(() => onEdit(task), [task, onEdit])
-  const handleDelete = useCallback(() => onDelete(task), [task, onDelete])
+  const handleToggle = useCallback(() => { if (!task.completed) onToggle(task) }, [task.id, task.completed, onToggle])
+  const handleEdit = useCallback(() => onEdit(task), [task.id, onEdit])
+  const handleDelete = useCallback(() => onDelete(task), [task.id, onDelete])
 
   return (
     <li
@@ -78,10 +78,10 @@ function TaskCard({ task, onToggle, onEdit, onDelete, now }) {
       </div>
 
       <div className="flex items-start gap-1 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
-        <button onClick={handleEdit} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-muted transition">
+        <button onClick={handleEdit} aria-label={`Edit ${task.title}`} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-muted transition">
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        <button onClick={handleDelete} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-red-500 hover:text-white transition">
+        <button onClick={handleDelete} aria-label={`Delete ${task.title}`} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-red-500 hover:text-white transition">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
