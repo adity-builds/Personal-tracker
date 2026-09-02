@@ -1,7 +1,7 @@
 # Roadmap
 
 Staged plan for Personal Tracker. Done items graduate into [CHANGELOG.md](CHANGELOG.md).
-Current release: **v0.4.3** — see [README.md](README.md).
+Current release: **v0.5.0** — see [README.md](README.md).
 
 ---
 
@@ -89,12 +89,16 @@ Current release: **v0.4.3** — see [README.md](README.md).
 
 ---
 
-## v0.5 — Data safety & portability
+## v0.5 — Layout + Adaptive Window (released 2026-09-02) ✅
+- [x] 3-column dashboard, adaptive window, light mesh, LiveClock (see CHANGELOG 0.5.0)
+- [x] Bump `version.py` / `VERSION` / `file_version_info.txt` / `package.json` / README / CHANGELOG to `0.5.0`
+
+## v0.6 — Data safety & portability
 - [ ] Export tasks + history to JSON / CSV
 - [ ] Import from JSON (merge or replace)
 - [ ] Automatic `tasks.db` backup rotation (keep last N)
 
-## v0.6 — Quality of life
+## v0.7 — Quality of life
 - [ ] Reminders / desktop notifications for tasks due today
 - [ ] Keyboard shortcuts (`N` new task, `/` search, etc.)
 - [ ] CI workflow running pytest on every push/PR

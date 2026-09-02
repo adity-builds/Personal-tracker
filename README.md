@@ -1,11 +1,11 @@
 # Personal Tracker — Daily Task Tracker
-![Version](https://img.shields.io/badge/version-0.4.3-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![React](https://img.shields.io/badge/React-18-61dafb) ![Electron](https://img.shields.io/badge/Electron-30-47848f) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.5.0-blue?style=flat) ![Python](https://img.shields.io/badge/python-3.10%2B-3776ab) ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688) ![React](https://img.shields.io/badge/React-18-61dafb) ![Electron](https://img.shields.io/badge/Electron-30-47848f) ![License](https://img.shields.io/badge/license-MIT-green)
 
 Glassmorphic desktop app for daily tasks — **pywebview + React + FastAPI + SQLite**. Ships as a frameless windowed `PersonalTracker.exe` (no console) with a proper installer, task editing with deadlines, insights dashboard, Dark/Light theme, and append-only history with timestamps.
 
-> **Latest release: v0.4.3** (2026-08-29) — **Standalone window restored**: `pywebview` frameless window back (like v0.3) + `window.electronAPI`/`pywebview` shim, white dark-mode glyphs, `setup-node 22` lock fix. See [CHANGELOG.md](CHANGELOG.md). Previous: `v0.4.2`.
+> **Latest release: v0.5.0** (2026-09-02) — **3-column dashboard + adaptive window + live background**: `src/App.jsx:222` `[300px 1fr 340px]` no-scroll layout, auto-fit `1440×900` / `92%` workArea `main.py:407` + `electron/main.js:92`, stronger light mesh `src/index.css:112`, live clock `src/components/LiveClock.jsx`. See [CHANGELOG.md](CHANGELOG.md). Previous: `v0.4.3`.
 
-## ✨ Features (v0.4.3)
+## ✨ Features (v0.5.0)
 
 - **Glassmorphic dashboard** — Translucent `glass` cards with `backdrop-blur-16`, mesh gradients, `Plus Jakarta Sans` + `Inter`, rounded `16px`, soft shadows (`src/index.css`, `src/App.jsx`)
 - **Electron + React** — Vite on `5173` (dev) / `dist-react` (prod), frameless `BrowserWindow` `electron/main.js:42` with `preload.cjs` `electron/preload.cjs:1` for window controls
@@ -19,7 +19,7 @@ Glassmorphic desktop app for daily tasks — **pywebview + React + FastAPI + SQL
 ```
 Personal Tracker/
 ├── main.py                 # FastAPI + pywebview window — serves dist-react / static fallback
-├── version.py / VERSION    # Single source of truth (0.4.3)
+├── version.py / VERSION    # Single source of truth (0.5.0)
 ├── database.py             # Engine + Alembic runner (PT_DB_PATH; frozen-exe paths)
 ├── models.py               # TaskModel (due_date), HistoryModel
 ├── schemas.py              # Pydantic schemas incl. StatsSummary
@@ -104,8 +104,8 @@ pyinstaller PersonalTracker.spec --noconfirm --clean
 # Output: dist/PersonalTracker.exe  (~26 MB, windowed, versioned via file_version_info.txt)
 
 # 3. Installer (needs Inno Setup 6)
-iscc installer/personal_tracker.iss /DAppVersion=0.4.3
-# Output: dist/PersonalTrackerSetup-v0.4.3.exe
+iscc installer/personal_tracker.iss /DAppVersion=0.5.0
+# Output: dist/PersonalTrackerSetup-v0.5.0.exe
 
 # 4. (Optional) Electron bundle
 npm run electron:build              # -> dist/*.exe via electron-builder
@@ -122,7 +122,7 @@ npm run electron:build              # -> dist/*.exe via electron-builder
 | `DELETE` | `/tasks/{task_id}` | — | `{ok: true}` |
 | `GET`  | `/history/` | — | `List[DailyCount{date, count, tasks:[{title, description, priority, created_at, completed_at}]}>` |
 | `GET`  | `/stats/` | — | `{total_completions, current_streak, best_day, best_day_count, last_7_days[7], by_priority}` |
-| `GET`  | `/version` | — | `{version: "0.4.3"}` |
+| `GET`  | `/version` | — | `{version: "0.5.0"}` |
 | `GET`  | `/` | — | `dist-react/index.html` (or API status when Electron loads file://) |
 | `GET`  | `/docs` | — | Swagger UI |
 
@@ -134,19 +134,21 @@ Completed tasks **permanent** (`409`). History **append-only** — every complet
 - **Version:** `version.py` / `VERSION` — bump both, update `file_version_info.txt` before `pyinstaller`
 
 ## 📝 Changelog
-See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.4.3:
-- Standalone window restored: `pywebview` frameless `Api` (`main.py:1`) + `window.electronAPI` shim (`TitleBar.jsx:4`), `PYWEBVIEW_DISABLED` for Electron spawn
-- No browser needed — double-click `PersonalTracker.exe` opens native window (like v0.3), data still in `%APPDATA%`
-- Keeps v0.4.1 perf + dark-mode fixes (white glyphs, `setup-node 22`)
+See [CHANGELOG.md](CHANGELOG.md). Highlights for v0.5.0:
+- 3-column dashboard: Today+Insights left, Add Task center, History right — no scroll in `1440×900`
+- Adaptive window: auto-fits any screen (`92%`/`88%` workArea `main.py:407`, `electron/main.js:92`)
+- Stronger light mesh + `LiveClock` + `useNow` hook
+
+Previous v0.4.3: Standalone window restored: `pywebview` frameless `Api` (`main.py:1`) + `window.electronAPI` shim (`TitleBar.jsx:4`), `PYWEBVIEW_DISABLED` for Electron spawn
 
 ## 🤝 Release Process (for maintainers)
 ```bash
 # 1. Bump version.py / VERSION / file_version_info.txt / README badge / CHANGELOG
 # 2. Commit
 git add -A
-git commit -m "Release v0.4.3"
+git commit -m "Release v0.5.0"
 # 3. Tag & push (triggers Release workflow: Node tests → Python tests → Vite → PyInstaller → Electron → Inno Setup)
-git tag v0.4.3
+git tag v0.5.0
 git push origin main --tags
 ```
 

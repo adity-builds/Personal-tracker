@@ -3,6 +3,20 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
+## [0.5.0] - 2026-09-02
+
+### Added
+- **3-column dashboard** (`src/App.jsx:222`): `TodayCard`+`InsightsPanel` left `[300px]`, `TaskForm`+list center `1fr`, `HistoryPanel` right `[340px]` — `max-w-[1420px]` + `lg:sticky top-[72px]` so no vertical scroll in `1440×900` window; mobile `Panels` toggle `src/App.jsx:180`
+- **Live clock** (`src/components/LiveClock.jsx:1`, `src/hooks/useNow.js:1`): per-second `useNow(1000)` isolated from `App useNow(60000)`, 12h/24h switch `localStorage:tracker-clock-24h` `src/App.jsx:31`
+- **Adaptive window** (`main.py:407` `_adaptive_size`, `electron/main.js:92` `getAdaptiveSize`): DPI-aware `GetSystemMetrics` / `screen.getPrimaryDisplay().workAreaSize` → `min(1440, sw*0.92)` × `min(900, sh*0.88)` clamped `980×640`, `center:true`; fits `1366×768→1311×706`, `1920×1080→1440×900`
+
+### Changed
+- **Light mesh stronger** (`src/index.css:112`): `hsla 0.065/0.03/0.04/0.014 42%/48%/52%` → `0.12/0.065/0.085/0.038 58%/56%/60%` — visible ink mixing on `40 20% 98%` background, animation still `32s` `meshMove`
+- Version bump `0.4.3→0.5.0` (`version.py:1`, `VERSION:1`, `file_version_info.txt:8`, `package.json:3`, `README.md:2`)
+
+### Fixed
+- `uvicorn main:app` from `node_modules` → `Could not import module "main"` — docs now stress running from project root `README.md:65`
+
 ## [0.4.3] - 2026-08-29
 
 ### Added
