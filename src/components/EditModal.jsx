@@ -57,38 +57,38 @@ export default function EditModal({ task, open, onClose, onSave }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ type: 'spring', damping: 24, stiffness: 300 }}
             onClick={e => e.stopPropagation()}
-            className="w-full max-w-lg glass-strong rounded-2xl p-5 shadow-2xl"
+            className="w-full max-w-lg bg-card border rounded-xl p-5 shadow-xl"
           >
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="font-display font-bold text-lg tracking-tight">Edit task</h3>
-                <p className="text-sm text-muted-foreground">Update the details of your task.</p>
+                <h3 className="font-medium tracking-tight">Edit task</h3>
+                <p className="text-xs text-muted-foreground">Update task details.</p>
               </div>
-              <button onClick={onClose} className="w-8 h-8 grid place-items-center rounded-xl bg-muted hover:bg-muted/80 transition">
+              <button onClick={onClose} className="w-8 h-8 grid place-items-center rounded-lg bg-muted hover:bg-muted/80 transition">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-3">
               <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Task title" maxLength={200}
-                className="w-full h-11 px-4 rounded-xl bg-card border border-border focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none text-sm font-medium" />
+                className="w-full h-10 px-3 rounded-lg bg-card border focus:border-foreground focus:ring-1 focus:ring-foreground/10 outline-none text-sm font-medium text-foreground" />
 
               <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional)" rows={3}
-                className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none text-sm resize-none" />
+                className="w-full px-3 py-2.5 rounded-lg bg-card border focus:border-foreground focus:ring-1 focus:ring-foreground/10 outline-none text-sm resize-none text-foreground placeholder:text-muted-foreground" />
 
-              <div className="grid grid-cols-3 gap-3">
-                <label className="flex items-center gap-2 bg-card border border-border dark:border-white/20 dark:bg-slate-800 rounded-xl px-3 h-11 focus-within:border-violet-500 dark:focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-500/10 dark:focus-within:ring-violet-400/20 transition group/date">
-                  <Calendar className="w-4 h-4 shrink-0 text-slate-700 dark:text-white transition-colors" />
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-transparent outline-none text-sm text-foreground dark:text-white" />
+              <div className="grid grid-cols-3 gap-2">
+                <label onClick={e => { const inp = e.currentTarget.querySelector('input'); try { inp?.showPicker?.() } catch {} }} className="flex items-center gap-2 bg-card border rounded-lg px-2.5 h-9 focus-within:border-foreground focus-within:ring-1 focus-within:ring-foreground/10 transition cursor-pointer">
+                  <Calendar className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)} onClick={e => { try { e.currentTarget.showPicker?.() } catch {} }} onFocus={e => { try { e.currentTarget.showPicker?.() } catch {} }} className="w-full bg-transparent outline-none text-sm text-foreground cursor-pointer" />
                 </label>
-                <label className="flex items-center gap-2 bg-card border border-border dark:border-white/20 dark:bg-slate-800 rounded-xl px-3 h-11 focus-within:border-violet-500 dark:focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-500/10 dark:focus-within:ring-violet-400/20 transition group/time">
-                  <Clock className="w-4 h-4 shrink-0 text-slate-700 dark:text-white transition-colors" />
-                  <input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full bg-transparent outline-none text-sm text-foreground dark:text-white" />
+                <label onClick={e => { const inp = e.currentTarget.querySelector('input'); try { inp?.showPicker?.() } catch {} }} className="flex items-center gap-2 bg-card border rounded-lg px-2.5 h-9 focus-within:border-foreground focus-within:ring-1 focus-within:ring-foreground/10 transition cursor-pointer">
+                  <Clock className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                  <input type="time" value={time} onChange={e => setTime(e.target.value)} onClick={e => { try { e.currentTarget.showPicker?.() } catch {} }} onFocus={e => { try { e.currentTarget.showPicker?.() } catch {} }} className="w-full bg-transparent outline-none text-sm text-foreground cursor-pointer" />
                 </label>
-                <label className="flex items-center gap-2 bg-card border border-border dark:border-white/20 dark:bg-slate-800 rounded-xl px-3 h-11 focus-within:border-violet-500 dark:focus-within:border-violet-400 transition group/prio">
-                  <Flag className="w-4 h-4 shrink-0 text-slate-700 dark:text-white transition-colors" />
-                  <select value={priority} onChange={e => setPriority(e.target.value)} className="w-full bg-transparent outline-none text-sm font-semibold cursor-pointer text-foreground dark:text-white">
-                    <option className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">High</option><option className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">Medium</option><option className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">Low</option>
+                <label className="flex items-center gap-2 bg-card border rounded-lg px-2.5 h-9 focus-within:border-foreground focus-within:ring-1 focus-within:ring-foreground/10 transition">
+                  <Flag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                  <select value={priority} onChange={e => setPriority(e.target.value)} className="w-full bg-transparent outline-none text-sm cursor-pointer text-foreground">
+                    <option>High</option><option>Medium</option><option>Low</option>
                   </select>
                 </label>
               </div>
@@ -100,10 +100,9 @@ export default function EditModal({ task, open, onClose, onSave }) {
               )}
 
               <div className="flex justify-end gap-2 pt-2">
-                <button onClick={onClose} className="h-10 px-5 rounded-xl bg-muted hover:bg-muted/80 font-semibold text-sm transition">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="h-10 px-5 rounded-xl gradient-primary text-white font-bold text-sm shadow-md hover:shadow-lg disabled:opacity-50 inline-flex items-center gap-2">
-                  <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}
-                </button>
+                <button onClick={onClose} className="h-9 px-4 rounded-lg bg-muted hover:bg-muted/80 font-medium text-sm transition">Cancel</button>
+                <button onClick={handleSave} disabled={saving} className="h-9 px-4 rounded-lg bg-foreground text-background font-medium text-sm hover:bg-foreground/90 disabled:opacity-50 inline-flex items-center gap-2">
+                  <Save className="w-3.5 h-3.5" /> {saving ? 'Saving…' : 'Save'}</button>
               </div>
             </div>
           </motion.div>

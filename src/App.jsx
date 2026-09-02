@@ -1,12 +1,15 @@
 import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react'
-import { Moon, Sun, LayoutDashboard, ClipboardList, SearchX, Sparkles } from 'lucide-react'
+import { Moon, Sun, ClipboardList, SearchX } from 'lucide-react'
 import TitleBar from './components/TitleBar.jsx'
-import Sidebar from './components/Sidebar.jsx'
+import { TodayCard, InsightsPanel, HistoryPanel } from './components/Sidebar.jsx'
 import TaskForm from './components/TaskForm.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import TaskCard from './components/TaskCard.jsx'
 import * as api from './utils/api.js'
 import * as Core from './utils/core.js'
+import { useNow } from './hooks/useNow.js'
+import { motion, AnimatePresence } from 'framer-motion'
+import LiveClock from './components/LiveClock.jsx'
 
 const EditModal = lazy(() => import('./components/EditModal.jsx'))
 
@@ -25,8 +28,22 @@ function useTheme() {
   return [theme, () => setTheme(t => t === 'dark' ? 'light' : 'dark')]
 }
 
+function useClockFormat() {
+  const [is24Hour, setIs24Hour] = useState(() => {
+    try {
+      return localStorage.getItem('tracker-clock-24h') === 'true'
+    } catch { return false }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('tracker-clock-24h', String(is24Hour)) } catch {}
+  }, [is24Hour])
+  return [is24Hour, setIs24Hour]
+}
+
 export default function App() {
   const [theme, toggleTheme] = useTheme()
+  const [is24Hour, setIs24Hour] = useClockFormat()
+  const now = useNow(60000)
   const [version, setVersion] = useState(null)
   const [tasks, setTasks] = useState([])
   const [history, setHistory] = useState([])
@@ -101,17 +118,17 @@ export default function App() {
         }
         return true
       })
-      .sort((a,b) => Core.compareTasks(a,b))
-  }, [tasks, query, priority, status])
+      .sort((a,b) => Core.compareTasks(a,b, now))
+  }, [tasks, query, priority, status, now])
 
   const todayCount = useMemo(() => {
     if (!history.length) return 0
-    const today = Core.todayString(new Date())
+    const today = Core.todayString(now)
     for (let i = 0; i < history.length; i++) {
       if (history[i].date === today) return history[i].count
     }
     return 0
-  }, [history])
+  }, [history, now])
 
   const handleCreate = useCallback(async (payload) => {
     await api.createTask(payload)
@@ -142,7 +159,7 @@ export default function App() {
 
       {/* Backend offline banner */}
       {apiError && (
-        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 pt-4">
+        <div className="max-w-[1420px] mx-auto px-4 sm:px-6 pt-4">
           <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300 px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
             <span className="font-semibold">⚠️ {apiError}</span>
             <button onClick={loadAll} className="ml-auto h-8 px-3 rounded-lg bg-red-500 text-white font-bold text-xs hover:bg-red-600 transition">Retry</button>
@@ -151,84 +168,128 @@ export default function App() {
         </div>
       )}
 
-      {/* Top bar actions */}
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 pt-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 text-sm font-semibold">
-            <span className="w-8 h-8 rounded-xl gradient-primary grid place-items-center text-white shadow"><LayoutDashboard className="w-4 h-4" /></span>
-            <span className="font-display font-bold tracking-tight">Daily Task Tracker</span>
-            <span className="text-muted-foreground font-normal hidden lg:inline">— Stay on top of your day, one task at a time.</span>
+      {/* Header — minimal, electron-native */}
+      <div className="max-w-[1420px] mx-auto px-4 sm:px-6 pt-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <h1 className="font-display font-semibold text-[22px] tracking-tight leading-none">Today</h1>
+            <span className="hidden sm:inline-flex h-5 w-px bg-border" />
+            <p className="hidden sm:block text-sm text-muted-foreground tabular-nums truncate">
+              {now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
+            <button onClick={() => setMobileSidebar(v => !v)} className="lg:hidden h-8 px-3 rounded-full bg-muted text-xs font-medium border">
+              {mobileSidebar ? 'Hide panels' : 'Panels'}
+            </button>
           </div>
-          <button onClick={() => setMobileSidebar(v => !v)} className="md:hidden glass rounded-xl px-3 py-2 text-sm font-semibold">
-            {mobileSidebar ? 'Hide insights' : 'Show insights'}
-          </button>
+          <p className="sm:hidden text-xs text-muted-foreground mt-1 tabular-nums">
+            {now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={toggleTheme} className="glass rounded-full h-9 px-4 inline-flex items-center gap-2 text-sm font-semibold hover:shadow-md transition">
+        <div className="flex items-center gap-2 shrink-0">
+          <LiveClock is24Hour={is24Hour} />
+          <div className="lg:hidden">
+            <LiveClock compact is24Hour={is24Hour} />
+          </div>
+          <div className="hidden lg:flex items-center bg-card border rounded-full h-8 px-1.5 shadow-sm">
+            <select
+              value={is24Hour ? '24' : '12'}
+              onChange={e => setIs24Hour(e.target.value === '24')}
+              className="bg-transparent text-xs font-medium px-2 py-1 outline-none cursor-pointer"
+              aria-label="Clock format"
+            >
+              <option value="12">12h</option>
+              <option value="24">24h</option>
+            </select>
+          </div>
+          <div className="lg:hidden">
+            <select
+              value={is24Hour ? '24' : '12'}
+              onChange={e => setIs24Hour(e.target.value === '24')}
+              className="bg-card border rounded-full h-8 px-2 text-xs font-medium shadow-sm outline-none cursor-pointer"
+              aria-label="Clock format"
+            >
+              <option value="12">12h</option>
+              <option value="24">24h</option>
+            </select>
+          </div>
+          <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }} onClick={toggleTheme} className="bg-card border rounded-full h-8 w-8 grid place-items-center hover:bg-muted transition shadow-sm" aria-label="Toggle theme">
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
-          </button>
+          </motion.button>
         </div>
       </div>
 
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
-        {/* Sidebar */}
-        <div className={`${mobileSidebar ? 'block' : 'hidden'} lg:block`}>
-          <Sidebar stats={stats} history={history} todayCount={todayCount} loading={loading} error={apiError} onRetry={loadAll} />
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }} className="max-w-[1420px] mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_340px] gap-6 items-start">
+        {/* Left — Today + Insights (sticky, no scroll needed) */}
+        <div className={`${mobileSidebar ? 'block' : 'hidden'} lg:block space-y-4 lg:sticky lg:top-[72px]`}>
+          <TodayCard count={todayCount} now={now} />
+          <InsightsPanel stats={stats} loading={loading} error={apiError} onRetry={loadAll} now={now} />
         </div>
 
-        {/* Main */}
-        <div className="min-w-0 space-y-4">
-          <TaskForm onCreate={handleCreate} apiError={apiError} />
+        {/* Middle — Add Task + Filters + List */}
+        <div className="min-w-0 space-y-3">
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+            <TaskForm onCreate={handleCreate} apiError={apiError} />
+          </motion.div>
 
-          <Toolbar query={query} setQuery={setQuery} priority={priority} setPriority={setPriority} status={status} setStatus={setStatus} count={filtered.length} />
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Toolbar query={query} setQuery={setQuery} priority={priority} setPriority={setPriority} status={status} setStatus={setStatus} count={filtered.length} />
+          </motion.div>
 
-          <div className="glass rounded-2xl p-3 sm:p-4">
+          <div className="rounded-xl bg-card border p-3 shadow-sm">
             {loading && tasks.length===0 ? (
-              <div className="py-16 text-center">
-                <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">Loading tasks…</p>
-              </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 text-center">
+                <div className="w-6 h-6 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              </motion.div>
             ) : apiError && tasks.length===0 ? (
-              <div className="py-16 text-center">
-                <div className="w-20 h-20 mx-auto rounded-2xl bg-red-500/10 border border-red-500/20 grid place-items-center mb-4">
-                  <SearchX className="w-8 h-8 text-red-500" />
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="py-10 text-center">
+                <div className="w-12 h-12 mx-auto rounded-lg bg-muted border grid place-items-center mb-3">
+                  <SearchX className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <h3 className="font-bold">Backend offline</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1">{apiError}</p>
-                <button onClick={loadAll} className="mt-4 h-9 px-4 rounded-xl bg-violet-500 text-white font-bold text-sm hover:bg-violet-600">Retry</button>
-              </div>
+                <h3 className="font-medium text-sm">Offline</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1">{apiError}</p>
+                <button onClick={loadAll} className="mt-3 h-8 px-4 rounded-full bg-foreground text-background text-xs font-medium hover:opacity-90">Retry</button>
+              </motion.div>
             ) : tasks.length === 0 ? (
-              <div className="py-16 text-center">
-                <div className="w-20 h-20 mx-auto rounded-2xl gradient-primary-soft border flex items-center justify-center mb-4">
-                  <ClipboardList className="w-8 h-8 text-violet-600 dark:text-violet-300" />
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="py-12 text-center">
+                <div className="w-12 h-12 mx-auto rounded-lg bg-muted border grid place-items-center mb-3">
+                  <ClipboardList className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <h3 className="font-display font-bold text-lg">No tasks yet</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1">Add your first task above and start tracking your day. Your progress will appear in Insights.</p>
-              </div>
+                <h3 className="font-medium">No tasks yet</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1">Create your first task above.</p>
+              </motion.div>
             ) : filtered.length === 0 ? (
-              <div className="py-16 text-center">
-                <div className="w-20 h-20 mx-auto rounded-2xl bg-muted border grid place-items-center mb-4">
-                  <SearchX className="w-8 h-8 text-muted-foreground" />
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-10 text-center">
+                <div className="w-10 h-10 mx-auto rounded-lg bg-muted border grid place-items-center mb-3">
+                  <SearchX className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <h3 className="font-bold">No matching tasks</h3>
-                <p className="text-sm text-muted-foreground">Try adjusting your search or filters.</p>
-              </div>
+                <h3 className="font-medium text-sm">No matches</h3>
+                <p className="text-xs text-muted-foreground">Adjust search or filters.</p>
+              </motion.div>
             ) : (
-              <ul className="space-y-3">
-                {filtered.map(task => (
-                  <TaskCard key={task.id} task={task} onToggle={handleToggle} onEdit={setEditing} onDelete={handleDelete} />
-                ))}
-              </ul>
+              <motion.ul layout className="space-y-2">
+                <AnimatePresence initial={false}>
+                  {filtered.map(task => (
+                    <motion.li key={task.id} layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }}>
+                      <TaskCard task={task} now={now} onToggle={handleToggle} onEdit={setEditing} onDelete={handleDelete} />
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </motion.ul>
             )}
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <Sparkles className="w-3.5 h-3.5" /> Glassmorphic UI — React + Electron • {tasks.filter(t=>!t.completed).length} pending • {tasks.filter(t=>t.completed).length} completed • API {api.API_BASE || 'relative'}
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
+            <span className="w-1 h-1 rounded-full bg-emerald-500" /> {tasks.filter(t=>!t.completed).length} pending • {tasks.filter(t=>t.completed).length} done
           </div>
         </div>
-      </div>
+
+        {/* Right — History (shifted from left sidebar to right of Add Tasks) */}
+        <div className={`${mobileSidebar ? 'block' : 'hidden'} lg:block lg:sticky lg:top-[72px]`}>
+          <HistoryPanel history={history} now={now} />
+        </div>
+      </motion.div>
 
       {editing && (
         <Suspense fallback={null}>

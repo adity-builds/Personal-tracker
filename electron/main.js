@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import { spawn } from 'child_process'
 import { fileURLToPath } from 'url'
 import path from 'path'
@@ -89,16 +89,37 @@ async function startPythonBackend() {
   }
 }
 
+function getAdaptiveSize() {
+  try {
+    const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize
+    // Cap at content max (1420) + padding, use 92%/88% of work area
+    let w = Math.min(1440, Math.round(sw * 0.92))
+    let h = Math.min(900, Math.round(sh * 0.88))
+    w = Math.max(w, 980)
+    h = Math.max(h, 640)
+    w = Math.min(w, sw - 16)
+    h = Math.min(h, sh - 16)
+    // Small screens (1366x768) -> use almost full work area
+    if (sw <= 1366) w = Math.round(sw * 0.96)
+    if (sh <= 800) h = Math.round(sh * 0.92)
+    return { width: w, height: h }
+  } catch {
+    return { width: 1280, height: 820 }
+  }
+}
+
 function createWindow() {
+  const { width, height } = getAdaptiveSize()
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
+    width,
+    height,
     minWidth: 980,
     minHeight: 640,
     frame: false,
     titleBarStyle: 'hidden',
     backgroundColor: '#f8fafc',
     show: false,
+    center: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

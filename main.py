@@ -403,12 +403,42 @@ if __name__ == "__main__":
             except KeyboardInterrupt:
                 sys.exit(0)
 
+        # Auto-fit to primary display (like Electron's getAdaptiveSize)
+        def _adaptive_size(default_w=1440, default_h=900, min_w=980, min_h=640):
+            try:
+                import ctypes
+                # Make process DPI-aware so GetSystemMetrics returns true pixels
+                try:
+                    ctypes.windll.shcore.SetProcessDpiAwareness(1)
+                except Exception:
+                    try:
+                        ctypes.windll.user32.SetProcessDPIAware()
+                    except Exception:
+                        pass
+                user32 = ctypes.windll.user32
+                sw = user32.GetSystemMetrics(0)
+                sh = user32.GetSystemMetrics(1)
+                w = min(default_w, int(sw * 0.92))
+                h = min(default_h, int(sh * 0.88))
+                w = max(w, min_w)
+                h = max(h, min_h)
+                w = min(w, sw - 16)
+                h = min(h, sh - 16)
+                if sw <= 1366:
+                    w = int(sw * 0.96)
+                if sh <= 800:
+                    h = int(sh * 0.92)
+                return w, h
+            except Exception:
+                return default_w, default_h
+
+        win_w, win_h = _adaptive_size()
         api = Api()
         window = webview.create_window(
             "Personal Tracker",
             f"http://{HOST}:{PORT}/",
-            width=1280,
-            height=820,
+            width=win_w,
+            height=win_h,
             min_size=(980, 640),
             frameless=True,
             easy_drag=False,

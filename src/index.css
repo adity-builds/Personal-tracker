@@ -2,40 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== Glassmorphic Design System ===== */
+/* ===== Modern Minimal Design System — Stone + Zinc ===== */
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 222 47% 11%;
+    --background: 40 20% 98%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 239 84% 67%;
-    --primary-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 239 84% 67%;
-    --radius: 16px;
+    --card-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --accent: 256 67% 57%;
+    --accent-foreground: 0 0% 98%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 14px;
     --glass-bg: 255 255 255;
-    --glass-opacity: 0.7;
-    --glass-border: 255 255 255;
-    --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
+    --glass-opacity: 0.82;
+    --glass-border: 240 5% 84%;
+    --glass-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
     color-scheme: light;
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 98%;
-    --primary: 239 84% 70%;
-    --primary-foreground: 0 0% 100%;
-    --border: 217 19% 18%;
-    --input: 217 19% 18%;
-    --ring: 239 84% 70%;
-    --glass-bg: 30 41 59;
-    --glass-opacity: 0.6;
-    --glass-border: 255 255 255;
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 6% 10%;
+    --card-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --accent: 250 84% 68%;
+    --accent-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 0 0% 98%;
+    --glass-bg: 24 24 27;
+    --glass-opacity: 0.72;
+    --glass-border: 63 63 70;
+    --glass-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.4);
     color-scheme: dark;
   }
 }
@@ -72,63 +80,110 @@
   }
 }
 
-/* ===== Glassmorphic Utilities — optimized for compositing ===== */
+/* ===== Minimal Utilities — subtle, no clutter ===== */
 @layer components {
   .glass {
     background: rgba(var(--glass-bg), var(--glass-opacity));
-    backdrop-filter: blur(12px) saturate(150%);
-    -webkit-backdrop-filter: blur(12px) saturate(150%);
-    border: 1px solid rgba(var(--glass-border), 0.14);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    border: 1px solid rgba(var(--glass-border), 0.5);
     box-shadow: var(--glass-shadow);
-    will-change: transform;
   }
 
   .dark .glass {
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(39, 39, 42, 0.72);
+    border: 1px solid rgba(63, 63, 70, 0.5);
   }
 
   .glass-strong {
-    background: rgba(var(--glass-bg), 0.82);
-    backdrop-filter: blur(16px) saturate(150%);
-    -webkit-backdrop-filter: blur(16px) saturate(150%);
-    border: 1px solid rgba(var(--glass-border), 0.16);
-    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
-    will-change: transform;
+    background: rgba(var(--glass-bg), 0.9);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border: 1px solid rgba(var(--glass-border), 0.6);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
   }
 
   .dark .glass-strong {
-    background: rgba(30, 41, 59, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    background: rgba(24, 24, 27, 0.85);
+    border: 1px solid rgba(63, 63, 70, 0.4);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   }
 
   .gradient-mesh {
-    background: 
-      radial-gradient(at 20% 20%, hsla(239, 84%, 67%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 80% 10%, hsla(280, 80%, 70%, 0.12) 0px, transparent 50%),
-      radial-gradient(at 40% 80%, hsla(200, 80%, 65%, 0.1) 0px, transparent 50%),
-      radial-gradient(at 90% 80%, hsla(320, 80%, 70%, 0.08) 0px, transparent 50%);
+    background: hsl(var(--background));
+    background-image: 
+      radial-gradient(at 18% 18%, hsla(0, 0%, 0%, 0.12) 0px, transparent 58%),
+      radial-gradient(at 82% 10%, hsla(0, 0%, 0%, 0.065) 0px, transparent 56%),
+      radial-gradient(at 48% 88%, hsla(0, 0%, 0%, 0.085) 0px, transparent 60%),
+      radial-gradient(at 92% 88%, hsla(0, 0%, 0%, 0.038) 0px, transparent 58%);
+    background-size: 180% 180%, 180% 180%, 180% 180%, 180% 180%;
+    background-position: 0% 0%, 100% 0%, 50% 100%, 100% 100%;
+    animation: meshMove 32s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+    will-change: background-position;
   }
 
   .dark .gradient-mesh {
-    background:
-      radial-gradient(at 20% 20%, hsla(239, 84%, 67%, 0.2) 0px, transparent 50%),
-      radial-gradient(at 80% 10%, hsla(280, 80%, 70%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 40% 80%, hsla(200, 80%, 65%, 0.12) 0px, transparent 50%),
-      radial-gradient(at 90% 80%, hsla(320, 80%, 70%, 0.1) 0px, transparent 50%);
+    background: hsl(var(--background));
+    background-image:
+      radial-gradient(at 18% 18%, hsla(0, 0%, 100%, 0.075) 0px, transparent 44%),
+      radial-gradient(at 82% 8%, hsla(0, 0%, 100%, 0.04) 0px, transparent 50%),
+      radial-gradient(at 48% 88%, hsla(0, 0%, 100%, 0.055) 0px, transparent 54%),
+      radial-gradient(at 92% 88%, hsla(0, 0%, 100%, 0.022) 0px, transparent 50%);
+    background-size: 180% 180%, 180% 180%, 180% 180%, 180% 180%;
+    background-position: 0% 0%, 100% 0%, 50% 100%, 100% 100%;
+    animation: meshMove 32s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+    will-change: background-position;
+  }
+
+  @keyframes meshMove {
+    0% {
+      background-position: 0% 0%, 100% 0%, 50% 100%, 100% 100%;
+    }
+    25% {
+      background-position: 8% 12%, 92% 8%, 58% 88%, 78% 82%;
+    }
+    50% {
+      background-position: 18% 6%, 82% 14%, 62% 82%, 88% 90%;
+    }
+    75% {
+      background-position: 6% 18%, 88% 4%, 42% 92%, 80% 78%;
+    }
+    100% {
+      background-position: 14% 8%, 86% 12%, 52% 86%, 94% 88%;
+    }
   }
 
   .gradient-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+  }
+  .dark .gradient-primary {
+    background: linear-gradient(135deg, #fafafa 0%, #e4e4e7 100%);
   }
 
   .gradient-primary-soft {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    background: hsl(var(--muted));
   }
 
   .dark .gradient-primary-soft {
-    background: linear-gradient(135deg, rgba(129, 140, 248, 0.15) 0%, rgba(167, 139, 250, 0.15) 100%);
+    background: hsl(var(--muted));
+  }
+
+  /* Floating cards — opaque, no background bleed */
+  .card-hover {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .dark .card-hover {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .dark .card-hover:hover {
+    box-shadow: 0 8px 28px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
   }
 
   .shimmer {
@@ -181,24 +236,9 @@ select option {
   color: white;
 }
 
-/* WebKit calendar/clock glyph: white in dark mode as requested */
+/* Picker auto-opens on field click via showPicker() — hide native buttons */
 ::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.75;
-  transition: opacity 0.2s, filter 0.2s;
-  width: 18px;
-  height: 18px;
-}
-::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
-}
-.dark ::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(1.15);
-  opacity: 1;
-}
-.dark ::-webkit-calendar-picker-indicator:hover {
-  filter: invert(1) brightness(1.25);
-  opacity: 1;
+  display: none;
 }
 /* Fallback for browsers without color-scheme support */
 @supports not (color-scheme: dark) {

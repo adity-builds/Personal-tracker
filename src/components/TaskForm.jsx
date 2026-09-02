@@ -41,20 +41,17 @@ export default function TaskForm({ onCreate, apiError }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="glass-strong rounded-2xl p-5 animate-[fadeIn_0.2s_ease-out]"
+      className="rounded-xl bg-card border p-4 shadow-sm"
     >
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="font-display font-bold text-base tracking-tight flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg gradient-primary grid place-items-center shadow">
-              <Plus className="w-4 h-4 text-white" />
-            </span>
-            Add a new task
-          </h3>
-          <p className="text-sm text-muted-foreground mt-1">What do you want to get done today?</p>
-        </div>
-        <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/15">
-          <Sparkles className="w-3.5 h-3.5" /> Quick add
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-medium text-sm tracking-tight flex items-center gap-2">
+          <span className="w-6 h-6 rounded-md bg-foreground grid place-items-center">
+            <Plus className="w-3.5 h-3.5 text-background" />
+          </span>
+          Add task
+        </h3>
+        <span className="hidden sm:inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Sparkles className="w-3 h-3" /> Quick add
         </span>
       </div>
 
@@ -63,55 +60,59 @@ export default function TaskForm({ onCreate, apiError }) {
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
-            placeholder="Task title — e.g., Ship the glass UI"
+            placeholder="What needs to be done?"
             maxLength={200}
             required
-            className="w-full h-12 px-4 pr-12 rounded-xl bg-card border border-border focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition text-sm font-medium placeholder:text-muted-foreground/60"
+            className="w-full h-10 px-3 pr-14 rounded-lg bg-background border focus:border-foreground focus:ring-1 focus:ring-foreground/10 outline-none transition text-sm placeholder:text-muted-foreground"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full">{title.length}/200</span>
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{title.length}/200</span>
         </div>
 
         <input
           value={description}
           onChange={e => setDescription(e.target.value)}
           placeholder="Description (optional)"
-          className="w-full h-11 px-4 rounded-xl bg-card border border-border focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition text-sm placeholder:text-muted-foreground/60"
+          className="w-full h-9 px-3 rounded-lg bg-background border focus:border-foreground focus:ring-1 focus:ring-foreground/10 outline-none transition text-sm placeholder:text-muted-foreground"
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_140px] gap-3">
-          <label className="relative flex items-center gap-2 bg-card border border-border dark:border-white/20 dark:bg-slate-800 rounded-xl px-3 h-11 focus-within:border-violet-500 dark:focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-500/10 dark:focus-within:ring-violet-400/20 transition group/date">
-            <Calendar className="w-4 h-4 shrink-0 text-slate-700 dark:text-white group-focus-within/date:text-violet-600 dark:group-focus-within/date:text-white transition-colors" />
+        <div className="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_120px] gap-2">
+          <label onClick={e => { const inp = e.currentTarget.querySelector('input'); try { inp?.showPicker?.() } catch {} }} className="flex items-center gap-2 bg-card border rounded-lg px-2.5 h-9 focus-within:border-foreground focus-within:ring-1 focus-within:ring-foreground/10 transition cursor-pointer">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <input type="date" value={date} onChange={e => setDate(e.target.value)} min={today}
-              className="w-full bg-transparent outline-none text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/60" />
+              onClick={e => { try { e.currentTarget.showPicker?.() } catch {} }}
+              onFocus={e => { try { e.currentTarget.showPicker?.() } catch {} }}
+              className="w-full bg-transparent outline-none text-sm text-foreground cursor-pointer" />
           </label>
 
-          <label className="relative flex items-center gap-2 bg-card border border-border dark:border-white/20 dark:bg-slate-800 rounded-xl px-3 h-11 focus-within:border-violet-500 dark:focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-500/10 dark:focus-within:ring-violet-400/20 transition group/time">
-            <Clock className="w-4 h-4 shrink-0 text-slate-700 dark:text-white group-focus-within/time:text-violet-600 dark:group-focus-within/time:text-white transition-colors" />
+          <label onClick={e => { const inp = e.currentTarget.querySelector('input'); try { inp?.showPicker?.() } catch {} }} className="flex items-center gap-2 bg-card border rounded-lg px-2.5 h-9 focus-within:border-foreground focus-within:ring-1 focus-within:ring-foreground/10 transition cursor-pointer">
+            <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <input type="time" value={time} onChange={e => setTime(e.target.value)}
-              className="w-full bg-transparent outline-none text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/60" />
+              onClick={e => { try { e.currentTarget.showPicker?.() } catch {} }}
+              onFocus={e => { try { e.currentTarget.showPicker?.() } catch {} }}
+              className="w-full bg-transparent outline-none text-sm text-foreground cursor-pointer" />
           </label>
 
-          <label className="relative flex items-center gap-2 bg-card border border-border dark:border-white/20 dark:bg-slate-800 rounded-xl px-3 h-11 focus-within:border-violet-500 dark:focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-500/10 dark:focus-within:ring-violet-400/20 transition group/prio">
-            <Flag className="w-4 h-4 shrink-0 text-slate-700 dark:text-white group-focus-within/prio:text-violet-600 dark:group-focus-within/prio:text-white transition-colors" />
-            <select value={priority} onChange={e => setPriority(e.target.value)} className="w-full bg-transparent outline-none text-sm font-semibold cursor-pointer text-foreground dark:text-white">
-              <option className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">High</option><option className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">Medium</option><option className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">Low</option>
+          <label className="flex items-center gap-2 bg-card border rounded-lg px-2.5 h-9 focus-within:border-foreground focus-within:ring-1 focus-within:ring-foreground/10 transition">
+            <Flag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <select value={priority} onChange={e => setPriority(e.target.value)} className="w-full bg-transparent outline-none text-sm cursor-pointer text-foreground">
+              <option>High</option><option>Medium</option><option>Low</option>
             </select>
           </label>
         </div>
 
         {apiError && !error && (
-          <div className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
-            <AlertCircle className="w-4 h-4 shrink-0" /> {apiError}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted border rounded-lg px-3 py-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {apiError}
           </div>
         )}
         {error && (
-          <div className="flex items-center gap-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/15 rounded-xl px-3 py-2">
-            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+          <div className="flex items-center gap-2 text-xs text-red-600 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
           </div>
         )}
 
-        <button disabled={loading || !title.trim()} className="w-full h-11 rounded-xl gradient-primary text-white font-bold text-sm shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 hover:translate-y-[-1px] active:translate-y-[0px] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
-          {loading ? 'Adding…' : <><Plus className="w-4 h-4" /> Add Task</>}
+        <button disabled={loading || !title.trim()} className="w-full h-9 rounded-lg bg-foreground text-background font-medium text-sm hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-1.5">
+          {loading ? 'Adding…' : <><Plus className="w-3.5 h-3.5" /> Add task</>}
         </button>
       </div>
     </form>
