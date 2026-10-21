@@ -82,4 +82,20 @@ export async function fetchVersion() {
   }
 }
 
+export async function exportBackup(format = 'json') {
+  const r = await fetchWithTimeout(`${API_BASE}/export/${format}`, {}, 10000)
+  if (!r.ok) throw await apiError(r, 'Export failed.')
+  return r
+}
+
+export async function importBackup(json, mode = 'merge') {
+  const r = await fetchWithTimeout(`${API_BASE}/import/json`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode, data: json }),
+  })
+  if (!r.ok) throw await apiError(r, 'Import failed.')
+  return r.json()
+}
+
 export { API_BASE }

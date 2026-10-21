@@ -1,5 +1,7 @@
 import os
 import sys
+import shutil
+from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
@@ -201,5 +203,42 @@ def run_migrations() -> None:
     command.upgrade(cfg, "head")
 
 
+def _rotate_backups(db_path: str, keep: int = 5) -> None:
+    """Keep the last N timestamped backups of the SQLite database.
+
+    Runs once at app startup. Copies tasks.db -> tasks.db.bak.<timestamp>
+    in the same directory, then deletes backups beyond `keep` (oldest first).
+    Disabled when keep <= 0. Failures never block startup.
+    """
+    if keep <= 0:
+        return
+    db = Path(db_path)
+    if not db.exists():
+        return
+    backup_dir = db.parent
+    prefix = db.name + ".bak."
+    existing = sorted(
+        [p for p in backup_dir.iterdir() if p.name.startswith(prefix) and p.is_file()],
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    for old in existing[keep:]:
+        try:
+            old.unlink()
+        except Exception:
+            pass
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = backup_dir / f"{db.name}.bak.{timestamp}"
+        shutil.copy2(str(db), str(backup_path))
+    except Exception:
+        pass
+
+
 def init_db() -> None:
     run_migrations()
+    try:
+        keep = int(os.environ.get("PT_BACKUP_KEEP", "5"))
+    except (TypeError, ValueError):
+        keep = 5
+    _rotate_backups(DB_PATH, keep=keep)

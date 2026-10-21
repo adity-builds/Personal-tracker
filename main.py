@@ -3,6 +3,8 @@ Personal Tracker v0.5.0
 Daily Task Tracker - Standalone Desktop App (FastAPI + pywebview + React)
 """
 from datetime import datetime, timedelta
+import csv
+import io
 import os
 import sys
 import threading
@@ -30,7 +32,7 @@ from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -307,10 +309,235 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     db_task = db.query(models.TaskModel).filter(models.TaskModel.id == task_id).first()
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     db.delete(db_task)
     db.commit()
     return {"ok": True}
+
+
+@app.get("/export/json")
+def export_json(db: Session = Depends(get_db)):
+    """Full database dump as JSON: tasks + history + metadata."""
+    tasks = (
+        db.query(models.TaskModel)
+        .order_by(models.TaskModel.id.asc())
+        .all()
+    )
+    history = (
+        db.query(models.HistoryModel)
+        .order_by(models.HistoryModel.id.asc())
+        .all()
+    )
+
+    def _task_row(t):
+        return {
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "completed": t.completed,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+            "due_date": t.due_date.isoformat() if t.due_date else None,
+            "priority": t.priority,
+        }
+
+    def _history_row(h):
+        return {
+            "id": h.id,
+            "task_id": h.task_id,
+            "title": h.title,
+            "description": h.description,
+            "priority": h.priority,
+            "created_at": h.created_at.isoformat() if h.created_at else None,
+            "completed_at": h.completed_at.isoformat() if h.completed_at else None,
+        }
+
+    return {
+        "version": __version__,
+        "exported_at": datetime.now().isoformat(),
+        "tasks": [_task_row(t) for t in tasks],
+        "history": [_history_row(h) for h in history],
+    }
+
+
+@app.get("/export/csv")
+def export_csv(db: Session = Depends(get_db)):
+    """Full database dump as CSV: tasks section then history section."""
+    tasks = (
+        db.query(models.TaskModel)
+        .order_by(models.TaskModel.id.asc())
+        .all()
+    )
+    history = (
+        db.query(models.HistoryModel)
+        .order_by(models.HistoryModel.id.asc())
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Tasks section
+    writer.writerow(["section", "tasks"])
+    writer.writerow([
+        "id", "title", "description", "completed", "created_at",
+        "completed_at", "due_date", "priority",
+    ])
+    for t in tasks:
+        writer.writerow([
+            t.id, t.title, t.description or "", t.completed,
+            t.created_at.isoformat() if t.created_at else "",
+            t.completed_at.isoformat() if t.completed_at else "",
+            t.due_date.isoformat() if t.due_date else "",
+            t.priority,
+        ])
+
+    # History section
+    writer.writerow([])
+    writer.writerow(["section", "history"])
+    writer.writerow([
+        "id", "task_id", "title", "description", "priority",
+        "created_at", "completed_at",
+    ])
+    for h in history:
+        writer.writerow([
+            h.id, h.task_id or "", h.title, h.description or "", h.priority,
+            h.created_at.isoformat() if h.created_at else "",
+            h.completed_at.isoformat() if h.completed_at else "",
+        ])
+
+    content = output.getvalue()
+    output.close()
+
+    return StreamingResponse(
+        iter([content]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="personaltracker_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        },
+    )
+
+
+def _parse_iso(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
+
+
+@app.post("/import/json")
+def import_json(payload: dict, db: Session = Depends(get_db)):
+    """Import tasks + history from a JSON export.
+
+    Body: {mode: "replace"|"merge", data: {tasks: [...], history: [...]}}.
+
+    - replace: clears all tasks + history, then loads imported rows.
+    - merge: upserts tasks by id (imported ids preserved where possible),
+             appends history entries that don't duplicate an existing
+             (task_id, completed_at) pair.
+
+    Returns {imported_tasks, imported_history, skipped, mode}.
+    """
+    mode = payload.get("mode", "merge")
+    if mode not in ("replace", "merge"):
+        raise HTTPException(status_code=422, detail='mode must be "replace" or "merge"')
+
+    data = payload.get("data", {})
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=422, detail="data must be an object")
+
+    imported_tasks = data.get("tasks", [])
+    imported_history = data.get("history", [])
+    if not isinstance(imported_tasks, list) or not isinstance(imported_history, list):
+        raise HTTPException(status_code=422, detail="data.tasks and data.history must be arrays")
+
+    if mode == "replace":
+        db.query(models.HistoryModel).delete()
+        db.query(models.TaskModel).delete()
+        db.commit()
+
+    skipped = 0
+    imported_tasks_count = 0
+    imported_history_count = 0
+
+    # Import tasks
+    existing_task_ids = {
+        t.id for t in db.query(models.TaskModel.id).all()
+    }
+    for row in imported_tasks:
+        if not isinstance(row, dict):
+            skipped += 1
+            continue
+        try:
+            task_id = row.get("id")
+            if task_id is None:
+                skipped += 1
+                continue
+            title = (row.get("title") or "").strip()
+            if not title:
+                skipped += 1
+                continue
+
+            db_task = models.TaskModel(
+                id=task_id,
+                title=title,
+                description=row.get("description"),
+                completed=bool(row.get("completed", False)),
+                created_at=_parse_iso(row.get("created_at")),
+                completed_at=_parse_iso(row.get("completed_at")),
+                due_date=_parse_iso(row.get("due_date")),
+                priority=row.get("priority") or "Medium",
+            )
+            db.merge(db_task)
+            imported_tasks_count += 1
+        except Exception:
+            skipped += 1
+            continue
+
+    db.commit()
+
+    # Import history
+    existing_history_keys = {
+        (h.task_id, h.completed_at)
+        for h in db.query(models.HistoryModel.task_id, models.HistoryModel.completed_at).all()
+    }
+    for row in imported_history:
+        if not isinstance(row, dict):
+            skipped += 1
+            continue
+        try:
+            task_id = row.get("task_id")
+            completed_at = _parse_iso(row.get("completed_at"))
+            key = (task_id, completed_at)
+            if mode == "merge" and key in existing_history_keys:
+                skipped += 1
+                continue
+
+            db_history = models.HistoryModel(
+                id=row.get("id"),
+                task_id=task_id,
+                title=row.get("title") or "",
+                description=row.get("description"),
+                priority=row.get("priority") or "Medium",
+                created_at=_parse_iso(row.get("created_at")),
+                completed_at=completed_at,
+            )
+            db.merge(db_history)
+            existing_history_keys.add(key)
+            imported_history_count += 1
+        except Exception:
+            skipped += 1
+            continue
+
+    db.commit()
+
+    return {
+        "imported_tasks": imported_tasks_count,
+        "imported_history": imported_history_count,
+        "skipped": skipped,
+        "mode": mode,
+    }
 
 
 class Api:
