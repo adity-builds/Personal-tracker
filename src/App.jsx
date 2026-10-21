@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react'
-import { Moon, Sun, ClipboardList, SearchX } from 'lucide-react'
+import { ClipboardList, SearchX } from 'lucide-react'
 import TitleBar from './components/TitleBar.jsx'
 import { TodayCard, InsightsPanel, HistoryPanel } from './components/Sidebar.jsx'
 import TaskForm from './components/TaskForm.jsx'
@@ -10,6 +10,8 @@ import { compareTasks, todayString } from './utils/core.js'
 import { useNow } from './hooks/useNow.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import LiveClock from './components/LiveClock.jsx'
+import Aurora from './components/Aurora.jsx'
+import SettingsMenu from './components/SettingsMenu.jsx'
 
 const EditModal = lazy(() => import('./components/EditModal.jsx'))
 
@@ -40,9 +42,33 @@ function useClockFormat() {
   return [is24Hour, setIs24Hour]
 }
 
+const DEFAULT_AURORA = { speed: 1.0, amplitude: 1.0, blend: 0.55 }
+function useAuroraSettings() {
+  const [settings, setSettings] = useState(() => {
+    try {
+      const raw = localStorage.getItem('aurora-settings')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        return {
+          speed: typeof parsed.speed === 'number' ? parsed.speed : DEFAULT_AURORA.speed,
+          amplitude: typeof parsed.amplitude === 'number' ? parsed.amplitude : DEFAULT_AURORA.amplitude,
+          blend: typeof parsed.blend === 'number' ? parsed.blend : DEFAULT_AURORA.blend,
+        }
+      }
+    } catch {}
+    return DEFAULT_AURORA
+  })
+  useEffect(() => {
+    try { localStorage.setItem('aurora-settings', JSON.stringify(settings)) } catch {}
+  }, [settings])
+  const reset = useCallback(() => setSettings({ ...DEFAULT_AURORA }), [])
+  return [settings, setSettings, reset]
+}
+
 export default function App() {
   const [theme, toggleTheme] = useTheme()
   const [is24Hour, setIs24Hour] = useClockFormat()
+  const [auroraSettings, setAuroraSettings, resetAurora] = useAuroraSettings()
   const now = useNow(60000)
   const [version, setVersion] = useState(null)
   const [tasks, setTasks] = useState([])
@@ -156,8 +182,30 @@ export default function App() {
   const pendingCount = useMemo(() => tasks.filter(t => !t.completed).length, [tasks])
   const doneCount = useMemo(() => tasks.filter(t => t.completed).length, [tasks])
 
+  const auroraColors = useMemo(() => (
+    theme === 'dark'
+      ? ['#5227FF', '#0ea5e9', '#7c3aed'] // violet-cyan-purple (dark: vibrant on dark hsl)
+      : ['#a78bfa', '#818cf8', '#f9a8d4'] // vivid pastel violet/indigo/pink — boosted for light-mode white base (lightMode shader mixes with white)
+  ), [theme])
+
   return (
-    <div className="min-h-screen gradient-mesh">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Aurora animated background - fixed behind, CSS mesh as fallback */}
+      <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
+        <div className="absolute inset-0 bg-background" />
+        <div className="absolute inset-0 gradient-mesh opacity-[0.45] dark:opacity-[0.3]" />
+        <div className="absolute inset-0 opacity-[0.95] dark:opacity-[0.85]">
+          <Aurora
+            colorStops={auroraColors}
+            amplitude={auroraSettings.amplitude}
+            blend={auroraSettings.blend}
+            speed={auroraSettings.speed}
+            lightMode={theme === 'light'}
+          />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/5 dark:to-black/5" />
+      </div>
+      <div className="relative z-10">
       <TitleBar version={version} />
 
       {/* Backend offline banner */}
@@ -191,20 +239,15 @@ export default function App() {
 
         <div className="flex items-center gap-2 shrink-0">
           <LiveClock is24Hour={is24Hour} />
-          <div className="flex items-center bg-card border rounded-full h-8 px-1.5 shadow-sm">
-            <select
-              value={is24Hour ? '24' : '12'}
-              onChange={e => setIs24Hour(e.target.value === '24')}
-              className="bg-transparent text-xs font-medium px-2 py-1 outline-none cursor-pointer"
-              aria-label="Clock format"
-            >
-              <option value="12">12h</option>
-              <option value="24">24h</option>
-            </select>
-          </div>
-          <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }} onClick={toggleTheme} className="bg-card border rounded-full h-8 w-8 grid place-items-center hover:bg-muted transition shadow-sm" aria-label="Toggle theme">
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </motion.button>
+          <SettingsMenu
+            theme={theme}
+            toggleTheme={toggleTheme}
+            is24Hour={is24Hour}
+            setIs24Hour={setIs24Hour}
+            auroraSettings={auroraSettings}
+            setAuroraSettings={setAuroraSettings}
+            onReset={resetAurora}
+          />
         </div>
       </div>
 
@@ -283,6 +326,7 @@ export default function App() {
       <Suspense fallback={null}>
         <EditModal task={editing} open={!!editing} onClose={handleEditClose} onSave={handleEditSave} />
       </Suspense>
+      </div>
     </div>
   )
 }

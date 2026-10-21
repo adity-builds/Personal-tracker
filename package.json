@@ -1,7 +1,7 @@
 {
   "name": "personal-tracker",
   "version": "0.5.0",
-  "description": "Personal Tracker \u00e2\u20ac\u201d Glassmorphic Electron + React UI",
+  "description": "Personal Tracker â€” Glassmorphic Electron + React UI",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -16,6 +16,7 @@
   "dependencies": {
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.344.0",
+    "ogl": "^1.0.11",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -27,6 +28,7 @@
     "concurrently": "^8.2.2",
     "electron": "^30.0.0",
     "electron-builder": "^24.9.1",
+    "playwright": "^1.62.1",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "vite": "^5.2.0",
