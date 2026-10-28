@@ -1,5 +1,5 @@
 """
-Personal Tracker v0.5.0
+Personal Tracker v0.6.0
 Daily Task Tracker - Standalone Desktop App (FastAPI + pywebview + React)
 """
 from datetime import datetime, timedelta
@@ -43,7 +43,7 @@ import schemas
 try:
     from version import __version__
 except ImportError:
-    __version__ = "0.5.0"
+    __version__ = "0.6.0"
 
 HOST = "127.0.0.1"
 PORT = 8000
@@ -85,8 +85,9 @@ app.add_middleware(
 
 # Serve frontend — only dist-react (Vite) in prod; static is legacy fallback
 _dist_dir = resource_path("dist-react")
-if os.path.isdir(_dist_dir):
-    app.mount("/assets", StaticFiles(directory=os.path.join(_dist_dir, "assets")), name="assets")
+_assets_dir = os.path.join(_dist_dir, "assets")
+if os.path.isdir(_assets_dir):
+    app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
 
 _cached_index: str | None = None
 _index_checked = False

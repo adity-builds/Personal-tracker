@@ -32,8 +32,8 @@ def test_rotate_backups_keeps_last_n(tmp_path):
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
-    # 3 existing kept + 1 new backup created = 4 total
-    assert len(remaining) == 4
+    # at most 3 backups remain (2 newest existing + 1 newly created)
+    assert len(remaining) == 3
 
 
 def test_rotate_backups_disabled_when_keep_zero(tmp_path):

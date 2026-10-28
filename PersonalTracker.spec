@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Personal Tracker v0.4.3 - PyInstaller spec for windowed standalone (pywebview + React)
+# Personal Tracker v0.6.0 - PyInstaller spec for windowed standalone (pywebview + React)
 # Build with: pyinstaller PersonalTracker.spec  (--noconfirm)
 # Console is DISABLED for windowed exe (no black console on launch)
 
@@ -10,12 +10,12 @@ import os
 APP_ICON = 'assets/app.ico'
 ICON_ARG = APP_ICON if os.path.exists(APP_ICON) else None
 
-# Include Vite build if present (Electron loads it via file://, but browser fallback serves it)
+# Include Vite build if present (Electron loads it via file://, but browser fallback serves it).
+# Never bundle the PyInstaller output dir (dist/): that would recursively include the
+# previously built exe and any tasks.db left next to a portable build.
 _dist_datas = []
 if os.path.isdir('dist-react'):
     _dist_datas.append(('dist-react', 'dist-react'))
-if os.path.isdir('dist'):
-    _dist_datas.append(('dist', 'dist'))
 if os.path.isdir('static'):
     _dist_datas.append(('static', 'static'))
 

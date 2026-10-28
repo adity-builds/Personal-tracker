@@ -20,6 +20,15 @@ function formatDateTime(dt) {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
+const EMPTY_STATS = {
+  current_streak: 0,
+  total_completions: 0,
+  best_day: null,
+  best_day_count: 0,
+  last_7_days: [],
+  by_priority: {},
+}
+
 export const TodayCard = memo(function TodayCard({ count, now }) {
   const liveDate = useMemo(() => now ? now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : '', [now])
   return (
@@ -39,6 +48,24 @@ export const TodayCard = memo(function TodayCard({ count, now }) {
 })
 
 export const InsightsPanel = memo(function InsightsPanel({ stats, loading, error, onRetry, now }) {
+  const s = stats || EMPTY_STATS
+
+  // Must run before any early return so hook order stays stable.
+  const { week, max, todayStr } = useMemo(() => {
+    const baseNow = now || new Date()
+    let w = s.last_7_days || []
+    if (w.length === 0) {
+      w = Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date(baseNow)
+        d.setDate(baseNow.getDate() - (6 - i))
+        return { date: todayString(d), count: 0 }
+      })
+    }
+    const m = Math.max(...w.map(d => d.count), 1)
+    const t = todayString(baseNow)
+    return { week: w, max: m, todayStr: t }
+  }, [s.last_7_days, now])
+
   if (loading && !stats) return (
     <div className="rounded-xl bg-card border p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -80,25 +107,6 @@ export const InsightsPanel = memo(function InsightsPanel({ stats, loading, error
       </div>
     )
   }
-
-  const fallback = { current_streak: 0, total_completions: 0, best_day: null, best_day_count: 0, last_7_days: [], by_priority: {} }
-  const s = stats || fallback
-
-  // Memoize week/max/todayStr to avoid recalc on every render - realtime via now
-  const { week, max, todayStr } = useMemo(() => {
-    const baseNow = now || new Date()
-    let w = s.last_7_days || []
-    if (w.length === 0) {
-      w = Array.from({length:7}).map((_, i) => {
-        const d = new Date(baseNow)
-        d.setDate(baseNow.getDate() - (6 - i))
-        return { date: todayString(d), count: 0 }
-      })
-    }
-    const m = Math.max(...w.map(d => d.count), 1)
-    const t = todayString(baseNow)
-    return { week: w, max: m, todayStr: t }
-  }, [s.last_7_days, now])
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="rounded-xl bg-card border p-4 shadow-sm">

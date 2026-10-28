@@ -1,7 +1,8 @@
 {
   "name": "personal-tracker",
-  "version": "0.5.0",
-  "description": "Personal Tracker â€” Glassmorphic Electron + React UI",
+  "version": "0.6.0",
+  "description": "Personal Tracker — Glassmorphic Electron + React UI",
+  "author": "aditya-builds",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -10,7 +11,9 @@
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron": "electron .",
+    "backend:build": "pyinstaller PersonalTracker.spec --noconfirm --clean",
     "electron:build": "vite build && electron-builder",
+    "electron:build:fallback": "vite build && electron-builder --config.win.signAndEditExecutable=false",
     "lint": "eslint src --ext .js,.jsx"
   },
   "dependencies": {
@@ -21,6 +24,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
@@ -28,6 +32,10 @@
     "concurrently": "^8.2.2",
     "electron": "^30.0.0",
     "electron-builder": "^24.9.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^15.15.0",
     "playwright": "^1.62.1",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
@@ -39,12 +47,18 @@
     "productName": "Personal Tracker",
     "files": [
       "dist-react/**/*",
-      "dist/**/*",
       "electron/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "dist/PersonalTracker.exe",
+        "to": "backend/PersonalTracker.exe"
+      }
+    ],
     "directories": {
-      "buildResources": "assets"
+      "buildResources": "assets",
+      "output": "dist-electron"
     },
     "win": {
       "target": "nsis",

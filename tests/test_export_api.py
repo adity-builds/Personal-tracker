@@ -1,12 +1,14 @@
 """Export endpoint tests: JSON and CSV dumps."""
 from datetime import datetime, timedelta
 
+from version import __version__
+
 
 def test_export_json_empty(client):
     resp = client.get("/export/json")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["version"] == "0.5.0"
+    assert body["version"] == __version__
     assert "exported_at" in body
     assert body["tasks"] == []
     assert body["history"] == []

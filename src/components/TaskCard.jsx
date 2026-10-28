@@ -29,9 +29,9 @@ function TaskCard({ task, onToggle, onEdit, onDelete, now }) {
     return { dueText: dt, timeText: tt }
   }, [task.due_date])
 
-  const handleToggle = useCallback(() => { if (!task.completed) onToggle(task) }, [task.id, task.completed, onToggle])
-  const handleEdit = useCallback(() => onEdit(task), [task.id, onEdit])
-  const handleDelete = useCallback(() => onDelete(task), [task.id, onDelete])
+  const handleToggle = useCallback(() => { if (!task.completed) onToggle(task) }, [task, onToggle])
+  const handleEdit = useCallback(() => onEdit(task), [task, onEdit])
+  const handleDelete = useCallback(() => onDelete(task), [task, onDelete])
 
   return (
     <li

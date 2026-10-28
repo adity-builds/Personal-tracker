@@ -204,10 +204,10 @@ def run_migrations() -> None:
 
 
 def _rotate_backups(db_path: str, keep: int = 5) -> None:
-    """Keep the last N timestamped backups of the SQLite database.
+    """Keep at most N timestamped backups of the SQLite database.
 
-    Runs once at app startup. Copies tasks.db -> tasks.db.bak.<timestamp>
-    in the same directory, then deletes backups beyond `keep` (oldest first).
+    Runs once at app startup. Prunes the oldest backups, then copies
+    tasks.db -> tasks.db.bak.<timestamp>, so the total never exceeds `keep`.
     Disabled when keep <= 0. Failures never block startup.
     """
     if keep <= 0:
@@ -222,7 +222,8 @@ def _rotate_backups(db_path: str, keep: int = 5) -> None:
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
-    for old in existing[keep:]:
+    # Leave room for the backup created below so the total stays == keep.
+    for old in existing[keep - 1:]:
         try:
             old.unlink()
         except Exception:

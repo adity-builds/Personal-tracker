@@ -45,12 +45,22 @@ function getPythonCommand() {
   return process.platform === 'win32' ? 'python' : 'python3'
 }
 
+function getBundledBackend() {
+  if (isDev) return null
+  const exe = path.join(process.resourcesPath, 'backend', 'PersonalTracker.exe')
+  return fs.existsSync(exe) ? exe : null
+}
+
 async function startPythonBackend() {
   const alreadyUp = await waitForServer(`${API_URL}/version`, 1200)
   if (alreadyUp) {
     console.log('[electron] Python backend already running')
     return
   }
+
+  const bundledBackend = getBundledBackend()
+  const pyCmd = bundledBackend || getPythonCommand()
+  const pyArgs = bundledBackend ? ['--api-only'] : ['-u', 'main.py']
 
   const projectRoot = isDev ? path.join(__dirname, '..') : path.join(process.resourcesPath, 'app.asar.unpacked')
   const possibleRoots = [
@@ -65,25 +75,37 @@ async function startPythonBackend() {
     if (fs.existsSync(path.join(p, 'main.py'))) { backendDir = p; break }
   }
 
-  console.log(`[electron] Starting Python backend from ${backendDir}`)
+  const env = { ...process.env, PYTHONUNBUFFERED: '1', PYWEBVIEW_DISABLED: '1' }
+  if (bundledBackend) {
+    // Share the same %APPDATA%\PersonalTracker DB as the PyInstaller/Inno build
+    // unless the caller explicitly overrides PT_DB_PATH.
+    if (!env.PT_DB_PATH) {
+      const dataDir = path.join(app.getPath('appData'), 'PersonalTracker')
+      try { fs.mkdirSync(dataDir, { recursive: true }) } catch {}
+      env.PT_DB_PATH = path.join(dataDir, 'tasks.db')
+    }
+    console.log(`[electron] Starting bundled backend ${bundledBackend}`)
+  } else {
+    console.log(`[electron] Starting Python backend from ${backendDir}`)
+  }
 
-  const pyCmd = getPythonCommand()
   try {
-    pyProcess = spawn(pyCmd, ['-u', 'main.py'], {
-      cwd: backendDir,
-      env: { ...process.env, PYTHONUNBUFFERED: '1', PYWEBVIEW_DISABLED: '1' },
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: process.platform === 'win32',
+    pyProcess = spawn(pyCmd, pyArgs, {
+      cwd: bundledBackend ? path.dirname(bundledBackend) : backendDir,
+      env,
+      stdio: bundledBackend ? ['ignore', 'ignore', 'ignore'] : ['ignore', 'pipe', 'pipe'],
+      shell: !bundledBackend && process.platform === 'win32',
       windowsHide: true,
     })
 
     pyProcess.stdout?.on('data', (d) => console.log(`[py] ${d}`.trim()))
     pyProcess.stderr?.on('data', (d) => console.error(`[py:err] ${d}`.trim()))
-    pyProcess.on('error', (err) => console.error('[electron] Failed to spawn python:', err))
-    pyProcess.on('exit', (code) => console.log(`[electron] Python exited with ${code}`))
+    pyProcess.on('error', (err) => console.error('[electron] Failed to spawn backend:', err))
+    pyProcess.on('exit', (code) => console.log(`[electron] Backend exited with ${code}`))
 
-    const ok = await waitForServer(`${API_URL}/version`, 12000)
-    if (!ok) console.warn('[electron] Python backend did not become ready in time')
+    const timeout = bundledBackend ? 20000 : 12000
+    const ok = await waitForServer(`${API_URL}/version`, timeout)
+    if (!ok) console.warn('[electron] Backend did not become ready in time')
   } catch (e) {
     console.error('[electron] spawn error', e)
   }

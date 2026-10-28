@@ -3,6 +3,29 @@
 All notable changes to Personal Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and [SemVer](https://semver.org/).
 
+## [0.6.0] - 2026-10-28
+
+### Added
+- **Automatic database backups** (`database.py:206` `_rotate_backups`): timestamped `tasks.db.bak.<stamp>` copies created at startup, keeping the latest `PT_BACKUP_KEEP` (default 5, `0` disables); rotation failures never block startup
+- **Export endpoints**: `GET /export/json` (tasks + history + metadata) and `GET /export/csv` (download) (`main.py:318`)
+- **Import endpoint**: `POST /import/json` with `merge` (upsert tasks, skip duplicate history) and `replace` (clear then restore) modes (`main.py:429`)
+- **Settings menu** (`src/components/SettingsMenu.jsx`): Light/Dark theme, 12h/24h clock, Aurora speed/amplitude/blend sliders, reset, and Data Safety panel for export/import
+- **Aurora background** (`src/components/Aurora.jsx`): WebGL/OGL shader with theme-aware colors, CSS-mesh fallback, reduced-motion handling, live prop updates
+- **CI guards**: `npm run lint` and a cross-file version consistency check in the release workflow
+
+### Changed
+- **Electron bundle is self-contained**: PyInstaller backend is copied to `resources/backend/PersonalTracker.exe` via `extraResources` and spawned with `--api-only`; output moved to `dist-electron` so it no longer collides with the portable `dist/PersonalTracker.exe`; packaged Electron defaults to `%APPDATA%\PersonalTracker\tasks.db` (overridable with `PT_DB_PATH`)
+- **Version bump** `0.5.0 → 0.6.0` (`version.py`, `VERSION`, `package.json`, `package-lock.json`, `file_version_info.txt`, README)
+- **Lint stack**: ESLint 9 flat config + `eslint-plugin-react` + `eslint-plugin-react-hooks`; renderer code is lint-clean
+
+### Fixed
+- **Rules-of-hooks violation** in `InsightsPanel` — `useMemo` now runs before loading/error early returns (`src/components/Sidebar.jsx`)
+- **Stale memo dependencies** in `TaskCard` callbacks (`src/components/TaskCard.jsx`)
+- **Import did not refresh the UI** — Settings now calls back into `App` after a successful import (`src/components/SettingsMenu.jsx`, `src/App.jsx`)
+- **Recursive PyInstaller payload**: `dist/` is no longer bundled into the exe, cutting it from ~80 MB to ~26 MB and avoiding accidental inclusion of `tasks.db` (`PersonalTracker.spec`)
+- **Electron CI resilience**: release workflow retries without exe metadata editing when Windows symlink privileges are unavailable, then asserts the bundled backend exists
+- **Repo hygiene**: DB backup files and Electron output dirs ignored by git, package metadata encoding corrected, scratch debug file removed
+
 ## [0.5.0] - 2026-09-02
 
 ### Added

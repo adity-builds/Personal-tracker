@@ -12,6 +12,7 @@ export default function SettingsMenu({
   auroraSettings,
   setAuroraSettings,
   onReset,
+  onDataChanged,
 }) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef(null)
@@ -69,6 +70,7 @@ export default function SettingsMenu({
         message: `Imported: ${result.imported_tasks} tasks, ${result.imported_history} history (skipped ${result.skipped}).`,
         error: false,
       })
+      await onDataChanged?.()
     } catch (e) {
       setDataStatus({ type: 'import', message: e.message || 'Import failed.', error: true })
     }
@@ -292,7 +294,10 @@ export default function SettingsMenu({
                       type="file"
                       accept=".json"
                       className="hidden"
-                      onChange={e => e.target.files && handleImport(e.target.files[0])}
+                      onChange={e => {
+                        if (e.target.files && e.target.files[0]) handleImport(e.target.files[0])
+                        e.target.value = ''
+                      }}
                     />
                   </label>
                 </div>

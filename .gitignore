@@ -2,6 +2,7 @@
 build/
 dist/
 dist-react/
+dist-electron*/
 out/
 *.manifest
 *.pyinstaller
@@ -31,8 +32,19 @@ pip-delete-this-directory.txt
 # Database (local user data - do not commit)
 tasks.db
 *.db
+*.db.bak
+*.db.bak.*
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
+
+# Test / tooling caches
+.pytest_cache/
+coverage/
+test-results/
+playwright-report/
 
 # OS
 Thumbs.db

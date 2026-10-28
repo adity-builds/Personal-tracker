@@ -247,6 +247,7 @@ export default function App() {
             auroraSettings={auroraSettings}
             setAuroraSettings={setAuroraSettings}
             onReset={resetAurora}
+            onDataChanged={loadAll}
           />
         </div>
       </div>

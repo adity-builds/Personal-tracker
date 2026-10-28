@@ -44,12 +44,28 @@ jobs:
           }
         shell: pwsh
 
-      - name: Lint & test - Node core logic
+      - name: Lint - React
+        run: npm run lint
+        shell: pwsh
+
+      - name: Test - Node core logic
         run: node tests/test_core_logic.js
         shell: pwsh
 
       - name: Test - Python API
         run: pytest -q
+        shell: pwsh
+
+      - name: Verify version consistency
+        run: |
+          $v = (Get-Content VERSION -Raw).Trim()
+          $py = (python -c "import version; print(version.__version__)").Trim()
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $fvi = Get-Content file_version_info.txt -Raw
+          if ($fvi -notmatch "filevers=\((\d+), (\d+), (\d+)") { throw "file_version_info.txt has no filevers tuple" }
+          $fv = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+          Write-Host "VERSION=$v version.py=$py package.json=$pkg file_version=$fv"
+          if ($v -ne $py -or $v -ne $pkg -or $v -ne $fv) { throw "Version mismatch - bump all version sources before releasing" }
         shell: pwsh
 
       - name: Build React UI (Vite → dist-react)
@@ -66,21 +82,30 @@ jobs:
           python -c "import pathlib; txt=pathlib.Path('PersonalTracker.spec').read_text(); assert 'console=False' in txt, 'spec must be windowed'; print('spec console=False verified')"
         shell: pwsh
 
-      - name: Build Electron app
+      - name: Build Electron app (bundles backend exe)
         run: |
-          # Electron will bundle dist-react + Python backend
+          # electron-builder packages dist-react + dist/PersonalTracker.exe (extraResources)
           npm run electron:build 2>&1 | Out-String -Stream | Select-Object -Last 100
-          dir dist
+          if ($LASTEXITCODE -ne 0) {
+            # winCodeSign extraction needs symlink privileges; CI may not grant them.
+            Write-Host "Retrying Electron build without exe metadata editing"
+            Remove-Item -Recurse -Force dist-electron -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+            npm run electron:build:fallback 2>&1 | Out-String -Stream | Select-Object -Last 100
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Electron build failed" }
+          dir dist-electron
+          if (!(Test-Path "dist-electron/win-unpacked/resources/backend/PersonalTracker.exe")) {
+            throw "Electron bundle is missing resources/backend/PersonalTracker.exe"
+          }
         shell: pwsh
-        continue-on-error: true
 
       - name: Smoke test - check exe is windowed
         run: |
-          if (!(Test-Path "dist/PersonalTracker.exe")) { Write-Host "dist/PersonalTracker.exe not found - Python backend build may have been overwritten by electron-builder"; } else {
-            $info = Get-Item "dist/PersonalTracker.exe"
-            Write-Host "Built backend exe: $($info.Length) bytes"
-            try { (Get-Item "dist/PersonalTracker.exe").VersionInfo | Format-List } catch {}
-          }
+          if (!(Test-Path "dist/PersonalTracker.exe")) { throw "dist/PersonalTracker.exe missing - PyInstaller build failed" }
+          $info = Get-Item "dist/PersonalTracker.exe"
+          Write-Host "Built backend exe: $($info.Length) bytes"
+          try { (Get-Item "dist/PersonalTracker.exe").VersionInfo | Format-List } catch {}
           Get-ChildItem dist -Recurse | Format-Table Name, Length -AutoSize | Out-String -Stream | Select-Object -First 80
         shell: pwsh
 
@@ -110,19 +135,33 @@ jobs:
           files: |
             dist/PersonalTracker.exe
             dist/PersonalTrackerSetup-v*.exe
-            dist/*.exe
-            dist/*.msi
+            dist-electron/*.exe
+            dist-electron/*.msi
           generate_release_notes: true
           body: |
-            Personal Tracker ${{ github.ref_name }} — Glassmorphic Electron + React UI
+            Personal Tracker ${{ github.ref_name }} — data safety, settings, and portability
+
+            **Highlights**
+            - Automatic rotating SQLite backups at startup (`PT_BACKUP_KEEP`, default 5; `0` disables)
+            - JSON and CSV export, plus JSON import in `merge` or `replace` mode; imports refresh the UI immediately
+            - Settings menu for Light/Dark theme, 12h/24h clock, Aurora controls, and Data Safety actions
+            - Self-contained Electron build with the PyInstaller backend bundled inside
+            - Leaner portable exe (~26 MB) with no recursive `dist/` payload
+            - CI lint, version-consistency checks, and Electron bundle verification
 
             **Downloads**
-            - `PersonalTrackerSetup-v…exe` — recommended: Start Menu shortcut, uninstaller (wraps Python backend + Electron shell)
-            - `PersonalTracker.exe` — portable backend (API on http://127.0.0.1:8000, UI loads from dist-react)
-            - Electron installer (if built) — full desktop experience
+            - `PersonalTrackerSetup-${{ github.ref_name }}.exe` — recommended: Start Menu shortcut, uninstaller, pywebview window
+            - `PersonalTracker.exe` — portable standalone app (API on http://127.0.0.1:8000)
+            - Electron installer (if built) — optional bundled-backend desktop shell
 
-            **New in v0.4.0:** Complete UI rebuild: Electron + React + Vite + Tailwind, glassmorphic dashboard, frameless window, preserved API & history.
+            **Data and upgrades**
+            - Installed builds use `%APPDATA%\PersonalTracker\tasks.db`
+            - Portable builds keep data next to the exe; override with `PT_DB_PATH`
+            - Rotating backups are written as `tasks.db.bak.<timestamp>` next to the database
+            - Existing databases migrate automatically on first launch
 
-            **Note:** task data in `%APPDATA%\PersonalTracker\tasks.db` (installed) or next to exe (portable).
+            **Full changelog:** https://github.com/adity-builds/Personal-tracker/blob/main/CHANGELOG.md
+
+            **Note:** Windows SmartScreen may warn on first download while this unsigned build builds reputation.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
