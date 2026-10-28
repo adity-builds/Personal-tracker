@@ -12,8 +12,8 @@
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron": "electron .",
     "backend:build": "pyinstaller PersonalTracker.spec --noconfirm --clean",
-    "electron:build": "vite build && electron-builder",
-    "electron:build:fallback": "vite build && electron-builder --config.win.signAndEditExecutable=false",
+    "electron:build": "vite build && electron-builder --publish never",
+    "electron:build:fallback": "vite build && electron-builder --publish never --config.win.signAndEditExecutable=false",
     "lint": "eslint src --ext .js,.jsx"
   },
   "dependencies": {
