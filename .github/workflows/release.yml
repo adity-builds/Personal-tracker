@@ -88,11 +88,14 @@ jobs:
           # Use the fallback builder: editing the Electron exe needs winCodeSign, whose
           # archive contains symlinks that GitHub's Windows runners may not extract.
           # This only skips exe metadata/icon editing; the installer and backend are unaffected.
-          npm run electron:build:fallback 2>&1 | Tee-Object -FilePath electron-build.log | Out-String -Stream | Select-Object -Last 100
-          if ($LASTEXITCODE -ne 0) {
-            "Electron build failed" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-            Get-Content electron-build.log -Tail 80 | Out-File $env:GITHUB_STEP_SUMMARY -Append
-            throw "Electron build failed"
+          # Redirect via cmd so native stderr cannot trip PowerShell's Stop preference.
+          cmd /c "npm run electron:build:fallback > electron-build.log 2>&1"
+          $electronExit = $LASTEXITCODE
+          Get-Content electron-build.log -Tail 100
+          if ($electronExit -ne 0) {
+            $tail = Get-Content electron-build.log -Tail 60
+            foreach ($line in $tail) { Write-Host "::error::$line" }
+            throw "Electron build failed with exit code $electronExit"
           }
           dir dist-electron
           if (!(Test-Path "dist-electron/win-unpacked/resources/backend/PersonalTracker.exe")) {
