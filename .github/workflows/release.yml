@@ -84,18 +84,19 @@ jobs:
 
       - name: Build Electron app (bundles backend exe)
         run: |
-          # electron-builder packages dist-react + dist/PersonalTracker.exe (extraResources)
-          npm run electron:build 2>&1 | Out-String -Stream | Select-Object -Last 100
+          # electron-builder packages dist-react + dist/PersonalTracker.exe (extraResources).
+          # Use the fallback builder: editing the Electron exe needs winCodeSign, whose
+          # archive contains symlinks that GitHub's Windows runners may not extract.
+          # This only skips exe metadata/icon editing; the installer and backend are unaffected.
+          npm run electron:build:fallback 2>&1 | Tee-Object -FilePath electron-build.log | Out-String -Stream | Select-Object -Last 100
           if ($LASTEXITCODE -ne 0) {
-            # winCodeSign extraction needs symlink privileges; CI may not grant them.
-            Write-Host "Retrying Electron build without exe metadata editing"
-            Remove-Item -Recurse -Force dist-electron -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 2
-            npm run electron:build:fallback 2>&1 | Out-String -Stream | Select-Object -Last 100
+            "Electron build failed" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            Get-Content electron-build.log -Tail 80 | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            throw "Electron build failed"
           }
-          if ($LASTEXITCODE -ne 0) { throw "Electron build failed" }
           dir dist-electron
           if (!(Test-Path "dist-electron/win-unpacked/resources/backend/PersonalTracker.exe")) {
+            "Electron bundle missing resources/backend/PersonalTracker.exe" | Out-File $env:GITHUB_STEP_SUMMARY -Append
             throw "Electron bundle is missing resources/backend/PersonalTracker.exe"
           }
         shell: pwsh
